@@ -1,0 +1,25 @@
+{
+  "key": "mmlu_pro",
+  "url": "https://hf-mirror.com/datasets/TIGER-Lab/MMLU-Pro/resolve/main/data/test-00000-of-00001.parquet",
+  "hf_repo": "TIGER-Lab/MMLU-Pro",
+  "hf_path": "data/test-00000-of-00001.parquet",
+  "fmt": "mmlu_pro",
+  "release": "2024-06",
+  "source_sha256": "0e24a191921c2f453518a537a8b2117bd137e7714d4ef1565e9ba06c1ecb9ad8",
+  "n_items": 12032,
+  "n_source_rows": 12032,
+  "chance_nominal": 0.1,
+  "chance_mean": 0.110877,
+  "option_count_counts": {
+    "3": 21,
+    "4": 606,
+    "5": 52,
+    "6": 93,
+    "7": 158,
+    "8": 320,
+    "9": 801,
+    "10": 9981
+  },
+  "notes": "2024-06 (ICML'24). 10-way, harder than MMLU, so 7-9B targets land in the interior band instead of at ceiling. CAVEAT: built from MMLU (2020) items, so the *content* may still be in pretraining even though format is new.",
+  "frozen": true
+}

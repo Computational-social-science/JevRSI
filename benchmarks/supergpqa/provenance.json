@@ -1,0 +1,24 @@
+{
+  "key": "supergpqa",
+  "url": "https://hf-mirror.com/datasets/m-a-p/SuperGPQA/resolve/main/SuperGPQA-all.jsonl",
+  "hf_repo": "m-a-p/SuperGPQA",
+  "hf_path": "SuperGPQA-all.jsonl",
+  "fmt": "supergpqa",
+  "release": "2025-02",
+  "source_sha256": "28b998e70205ee95e540317b5adc06a06552a3961fb50b153df126b833f7a910",
+  "n_items": 26529,
+  "n_source_rows": 26529,
+  "chance_nominal": 0.25,
+  "chance_mean": 0.10586,
+  "option_count_counts": {
+    "4": 438,
+    "5": 204,
+    "6": 280,
+    "7": 441,
+    "8": 683,
+    "9": 1325,
+    "10": 23158
+  },
+  "notes": "2025-02. Expert-written, post-cutoff for every target below — the genuine contamination control. Expect a lower band; band placement is measured, not assumed.",
+  "frozen": true
+}

@@ -1,0 +1,10 @@
+{
+  "key": "arc_easy",
+  "url": "https://hf-mirror.com/datasets/allenai/ai2_arc/resolve/main/ARC-Easy/test-00000-of-00001.parquet",
+  "hf_repo": "allenai/ai2_arc",
+  "hf_path": "ARC-Easy/test-00000-of-00001.parquet",
+  "source_sha256": "4160597d618ae851c7eb04e281574f3f654776216ac6b6641588d64527b47177",
+  "n_items": 2376,
+  "notes": "Primary pilot benchmark: same format as arc_challenge, easier, so 3-8B targets clear the capability floor.",
+  "frozen": true
+}
