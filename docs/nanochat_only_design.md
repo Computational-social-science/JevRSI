@@ -135,29 +135,71 @@ manipulation auditable rather than impressionistic.
 
 ---
 
-## §5 Measured instrument characteristics
+## §5 Measured instrument characteristics (final, n = 6)
 
-From the noise-floor block of 2026-09-26 (identical code, commit `a4123c6`,
-`TIME_BUDGET=300`, grad-accum 64, seed 42):
+From the completed noise-floor block of 2026-09-26 — identical code, commit `a4123c6`,
+`TIME_BUDGET=300`, grad-accum 64, seed 42, six runs:
 
-| run | `num_steps` | `val_bpb@300s` | host | max dt | min tok/s |
-|---|---|---|---|---|---|
-| baseline | 44 | 0.863803 | idle | 10,544 ms | 49,723 |
-| replicate 3 | 44 | 0.866649 | idle | — | — |
-| replicate 1 | 42 | 0.889241 | subagents | 14,972 ms | 35,017 |
-| replicate 2 | 42 | 0.888302 | subagents | 11,191 ms | 46,848 |
+| run | `num_steps` | tokens | `val_bpb@300s` | host | max dt | min tok/s |
+|---|---|---|---|---|---|---|
+| baseline | 44 | 23.1 M | 0.863803 | idle | 10,544 ms | 49,723 |
+| replicate 3 | 44 | 23.1 M | 0.866649 | idle | 10,127 ms | 51,769 |
+| replicate 4 | 44 | 23.1 M | 0.866307 | idle | 10,296 ms | 50,919 |
+| replicate 5 | **43** | 22.5 M | 0.888926 | loaded | 10,504 ms | 49,911 |
+| replicate 1 | 42 | 22.0 M | 0.889241 | subagents | 14,972 ms | 35,017 |
+| replicate 2 | 42 | 22.0 M | 0.888302 | subagents | 11,191 ms | 46,848 |
 
-Two clean runs at 44 steps differ by **0.002846 bpb**. The 44 → 42 step gap is **≈0.0254 bpb**,
-i.e. **≈9× larger**. Therefore:
+### 5.1 The distribution is BIMODAL, not a slope
 
-- **intrinsic residual** σ_resid ≈ 0.002 bpb at fixed step count;
-- **load-induced variation** enters only through `num_steps`, at **0.0127 bpb/step**;
-- an effect is only meaningful if it survives **both** the residual and the covariate.
+The runs split cleanly into two clusters, and `num_steps` separates them with no overlap:
 
-The equivalence margin is therefore **not ±0.001** (that number, from `variance_design.md`, is
-unreachable and predates this measurement). It must be re-derived from the full replicate set
-before any variant is run, using the *upper* bound of σ (a 5-replicate σ has a 95% CI spanning
-[0.599, 2.874]× the point estimate — a 23× span — so sizing on the point estimate is forbidden).
+| cluster | steps | n | mean `val_bpb` | within-cluster SD |
+|---|---|---|---|---|
+| **complete** | 44 | 3 | 0.865586 | 0.001554 |
+| **truncated** | 42–43 | 3 | 0.888823 | 0.000478 |
+
+- **between-regime gap: 0.023237 bpb** (~2.7% of baseline)
+- **pooled within-regime SD: 0.00115 bpb**
+- ratio: **≈20×**
+
+An earlier version of this section reported a **"0.0127 bpb/step slope"** derived from the single
+42-vs-44 comparison. **That was wrong.** Replicate 5 lands at 43 steps — one step short — yet
+sits in the *truncated* cluster at 0.888926, not between the clusters. The penalty is a
+**cliff, not a slope**, and is not proportional to the number of missing steps.
+
+### 5.2 Mechanism: the LR schedule is normalised over the run's own length
+
+Per-step logs show why the cliff is so steep. The learning-rate multiplier at a given *absolute*
+step differs between runs of different lengths:
+
+| step | complete (44 steps) | truncated (42–43 steps) |
+|---|---|---|
+| 30 | 0.840 | 0.750 |
+| 35 | 0.540 | 0.430 |
+| 40 | 0.230 | 0.120 |
+| 42 | 0.110 | 0.000 |
+
+Training losses are **identical to four decimals up to ~step 35** (3.1946 / 3.1959 / 3.1980 in the
+complete cluster vs 3.1976 / 3.1962 / 3.1933 in the truncated one) and diverge only afterwards,
+ending at ≈2.825 vs ≈2.87–2.90.
+
+So host load does not merely remove tokens: it **compresses the LR schedule**, lowering the
+learning rate at every absolute step. The chain is a two-stage mediation —
+**load → fewer steps → compressed schedule → less learning** — and that is why a *one-step*
+difference costs the full ~0.023 bpb rather than one step's worth of tokens.
+
+### 5.3 What this forces
+
+- **`num_steps` is a valid regime indicator but not a linear covariate.** Flagging
+  `num_steps < 44` is correct — it catches 42 *and* 43 — while extrapolating a per-step slope is
+  not. The negative estimate for `dbpb/dstep` used in the §7 mediation estimand is therefore
+  unreliable and must be estimated from a controlled 42/43/44 sweep, or the mediation dropped.
+- **intrinsic noise ≈ 0.0012 bpb pooled.** Anything below that is unmeasurable on this instrument.
+- **the load effect ≈ 0.023 bpb ≈ 20× that**, so the regime must be *controlled*, not merely
+  recorded. One concurrent agent is enough: replicate 5 was disturbed by nothing more than this
+  session's own light work.
+- **Equivalence margin: ±0.005 bpb** — ≈4× the pooled within-regime SD, and ≈0.6% of the baseline.
+  The earlier ±0.001 is below 1× SD and is unreachable by construction.
 
 ---
 

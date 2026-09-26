@@ -128,6 +128,12 @@ GROUND_TRUTH = {
     "repl_1": "contaminated",
     "repl_2": "contaminated",
     "repl_3": "clean",
+    "repl_4": "clean",
+    # repl_5 is the case that broke the linear "bpb per step" story: 43 steps, ONE short of
+    # complete, yet val_bpb 0.888926 sits in the truncated cluster rather than between the
+    # clusters. It must be flagged, and it is the reason the check tests num_steps < 44
+    # rather than modelling a slope.
+    "repl_5": "contaminated",
 }
 if LOGS.exists():
     for name, truth in GROUND_TRUTH.items():

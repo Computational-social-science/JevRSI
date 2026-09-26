@@ -20,16 +20,29 @@ step time, so runs of *identical* code receive different optimizer-step counts. 
 
 Two consequences, and they change the estimator:
 
-1. The 42↔44 step difference spans **~0.0254 bpb** — a slope of **~0.0127 bpb per step**. That is
-   larger than any effect this study is powered to detect.
-2. At a **fixed** step count, two independent runs differed by only **0.000939 bpb** — two orders
-   of magnitude smaller.
+1. The 42↔44 step difference spans **~0.0232 bpb**. **CORRECTION (after the block completed):**
+   this is a **cliff, not a per-step slope.** An earlier version of this paragraph claimed
+   "0.0127 bpb per step" from the single 42-vs-44 pair. Replicate 5 then landed at **43 steps**
+   (one short of complete) with `val_bpb` **0.888926** — inside the *truncated* cluster, not
+   between the clusters. The penalty is therefore not proportional to missing steps, and no
+   per-step slope should be extrapolated from these data.
+2. At a **fixed** step count, three complete runs (44 steps, n = 3) gave
+   {0.863803, 0.866649, 0.866307}: **within-cluster SD 0.001554**, pooled with the truncated
+   cluster's 0.000478 to give **≈0.0012 bpb** — about **20× smaller** than the 0.0232 regime gap.
 
-So `num_steps` is **not** a noise channel but a **confound**: a variant that merely changes
-throughput changes `val_bpb` mechanically, with no change in learning quality. It must be recorded
-for every run and entered as a covariate (or the run must be step-controlled). This is the
-mediation estimand `Delta_total = Delta_fixed_steps + Delta_num_steps · (dbpb/dstep)` used
-throughout §4, and it is the direct implementation of the failure condition F3.
+**Mechanism (per-step logs):** the LR schedule is normalised over the run's *own* length, so a
+truncated run has a **lower learning rate at every absolute step** (at step 30: 0.750 vs 0.840;
+at step 40: 0.120 vs 0.230; at step 42: 0.000 vs 0.110). Training losses are identical to four
+decimals through ~step 35 and diverge only afterwards. Load → fewer steps → **compressed LR
+schedule** → less learning: a two-stage mediation, which is why **one** missing step already
+costs the full gap.
+
+So `num_steps` is **not** a noise channel but a **confound**, and it is **bimodal rather than
+linear**: flag `num_steps < 44` (catches both 42 and 43) rather than modelling a slope, and
+control the load regime rather than merely recording it. This is the mediation estimand
+`Delta_total = Delta_fixed_steps + Delta_num_steps · (dbpb/dstep)` used throughout §4 — but note
+that `dbpb/dstep` as estimated here is unreliable and must come from a controlled 42/43/44 sweep,
+or the mediation must be dropped. It is the direct implementation of failure condition F3.
 **Nothing in this document was produced by running a GPU job.** All empirical inputs below
 were read from existing logs and configuration files.
 

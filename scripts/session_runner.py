@@ -94,8 +94,14 @@ MAX_PYTHON_PROCS = 6         # a bare host has few; concurrent agents push this 
 THROUGHPUT_TOLERANCE = 1.15  # >15% departure from the clean baseline counts as contaminated
 
 # Measured 2026-09-26, commit a4123c6, idle host, TIME_BUDGET=300, batch 4, grad-accum 64.
-# Two idle-host runs at 44 steps gave val_bpb 0.863803 and 0.866649 (|diff| 0.002846),
-# while the 44 -> 42 step gap was ~0.0254 bpb at 0.0127 bpb/step.
+# The completed 6-run noise floor is BIMODAL, not a slope:
+#   complete  44 steps, n=3: 0.863803 / 0.866649 / 0.866307  -> mean 0.865586, SD 0.001554
+#   truncated 42-43,  n=3: 0.889241 / 0.888302 / 0.888926  -> mean 0.888823, SD 0.000478
+#   between-regime gap 0.023237 bpb, pooled within-regime SD ~0.0012  =>  ~20x
+# Replicate 5 at 43 steps (ONE short) sits in the truncated cluster, so the penalty is a
+# cliff and NOT proportional to missing steps. Do not extrapolate a per-step slope.
+# Mechanism: the LR schedule is normalised over the run's own length, so a truncated run
+# has a lower LR at every absolute step (step 30: 0.750 vs 0.840; step 42: 0.000 vs 0.110).
 BASELINE_CLEAN = {
     "commit": "a4123c6",
     "dt_median_ms": 9151,
@@ -103,6 +109,11 @@ BASELINE_CLEAN = {
     "tok_per_sec_min": 49723,
     "val_bpb": 0.863803,
     "val_bpb_replicate": 0.866649,
+    "val_bpb_complete_cluster_mean": 0.865586,
+    "val_bpb_truncated_cluster_mean": 0.888823,
+    "between_regime_gap": 0.023237,
+    "within_regime_sd_pooled": 0.001150,
+    "equivalence_margin": 0.005,   # ~4x pooled within-regime SD, ~0.6% of baseline
     "num_steps": 44,
     "peak_vram_mb": 1777.1,
 }
