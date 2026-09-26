@@ -188,20 +188,62 @@ brief criticises. HPFE is measured against it.
 
 ## §7 Run plan and budget
 
+### 7.0 CORRECTION — the unit of analysis is the agent session, not a training run
+
+An earlier version of this section budgeted "V × S = 65 runs at 8.6 min/run = 9.3 hours".
+**That was wrong**, and the error is recorded rather than quietly fixed because it is the kind
+that wastes a week of GPU.
+
+A single `uv run train.py` does not involve `program.md` at all. The template is read by the
+**agent**, which then decides what to change and launches **many** training jobs. So:
+
+- the experimental **unit** is one **agent session** — the trajectory of experiments the agent
+  produces while following one variant of the template;
+- the **DV** is a property of that trajectory (§7.2), not of one job;
+- the **seed** factor applies to the session's base seed, which fixes init and data order for
+  every job inside it.
+
+Cost therefore scales with sessions, not with cells:
+
+```
+per-experiment cost   8.6 min   (measured, idle host, FLAW 11 regime)
+session length T      1.0 h     -> ~7 experiments per session
+cells                 V x S
+wall time             cells x T
+
+V=13, S=1             13 h      ~1 overnight block
+V=13, S=3             39 h      ~1.6 days
+V=13, S=5             65 h      ~2.7 days
+```
+
+A 24/7 local campaign makes S=5 affordable, but it is **three days of continuous GPU**, not one
+night. **Staging is therefore mandatory**: run S=1 first to establish the spread and to prove the
+runner itself sound, then extend S only for the variants whose spread warrants the extra cost.
+A session also costs agent inference on top of training, so T=1 h yields *fewer* than 7
+experiments whenever the executor is slower than the GPU.
+
+### 7.1 Cells
+
 ```
 Factor 1  program.md variant   V = 13   (v00 stock + v01..v12)
-Factor 2  training seed        S = 5    (requires G1)
-Executor  fixed (D1)
-Design    V x S crossed, R = 1
-DV        val_bpb@300s  +  num_steps covariate
-Runs      13 x 5 = 65
+Factor 2  session base seed    S       (requires gate G1); staged 1 -> 3 -> 5
+Executor  fixed, declared by name (D1)
+Design    V x S, one session per cell
 ```
 
-At the measured **8.6 min/run** and **140 runs/day** (FLAW-corrected, idle-host regime), 65 runs ≈
-**9.3 hours** — comfortably inside one unattended block, leaving ~75 runs of margin for the C-o
-search phase and for replicates.
+### 7.2 The DV for a session
 
-### 7.1 Analysis (deferred to `variance_design.md` for the algebra)
+Primary: **`best_val_bpb@300s`** — the lowest `val_bpb` reached in the session, with `num_steps`
+as covariate (D3), and the improvement over the session's own stage-0 baseline run.
+
+Secondary, and reported because they distinguish *searching* from *guessing*: `n_experiments`,
+`n_kept` (the keep rate), the reason-code histogram from the trajectory records (FLAW 8), and
+the improvement trajectory itself.
+
+Rationale: the brief asks whether the template determines the **yield of the search**. Yield is
+a property of the trajectory, which is why the unit cannot be a single job.
+
+### 7.3 Analysis (deferred to `variance_design.md` for the algebra)
 
 - **HPFE (C-n)**: the between-variant spread of seed-averaged `val_bpb@300s`, with `num_steps`
   as covariate, tested **both** ways — difference (is the spread larger than the independence
