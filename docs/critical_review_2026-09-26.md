@@ -211,6 +211,40 @@ say anything. Fixing the test's shape surfaced the power problem immediately.
 | 8 | persist diffs + reason codes before every reset | agent loop |
 | 9 | specify the crossed design and the variance decomposition | protocol |
 
+## FLAW 11 (self-inflicted, found by instrumenting the instrument). Ambient load is a confound and my own orchestration produced it
+
+While the 5-replicate noise floor ran, I dispatched 5 parallel subagents on the same host. The
+per-step training logs show the damage:
+
+| run | steps | median dt | max dt | median tok/s | min tok/s |
+|---|---|---|---|---|---|
+| baseline (host idle) | 44 | 9,151 ms | 10,544 ms | 57,293 | 49,723 |
+| replicate 1 (subagents active) | 42 | 9,752 ms | 14,972 ms | 53,764 | 35,017 |
+| replicate 2 (subagents tailing off) | 42 | 9,290 ms | 11,191 ms | 56,439 | 46,848 |
+
+Replicate 1's worst step took **14,972 ms** against a 10,544 ms ceiling on the idle host, and its
+minimum throughput was **35,017 tok/s** against 49,723. Because the budget is a fixed **wall-clock**
+300 s, lost throughput converts directly into **fewer optimizer steps** (44 → 42), which converts
+into worse `val_bpb` at the measured ~0.0127 bpb/step slope.
+
+**So the first two replicates measure my own CPU load, not the instrument's intrinsic noise.** The
+numbers are not wrong, but their interpretation must be split:
+
+- **contaminated** replicates bound the effect of *ambient load* — a real threat for a 24/7
+  unattended campaign, which will never enjoy a truly idle host;
+- **clean** replicates (3–5, host idle) bound *intrinsic GPU/driver nondeterminism*.
+
+**Fix.** Every confirmatory run, and every noise-floor run, must execute under a **declared load
+regime**, with `dt` and tok/s logged as monitored covariates. No concurrent agent orchestration on
+the training host during a measurement block. `num_steps` is then the unit of exchange between host
+load and `val_bpb`.
+
+This is the same class as FLAW 7 (an uncontrolled channel silently entering the DV) and was caught
+only because throughput was instrumented per step. Had only the final `val_bpb` been logged, the
+42-vs-44 discrepancy would have looked like ordinary randomness.
+
+---
+
 ## What is *not* wrong
 
 - The instrument is sound: frozen SHA-256 stimuli, mechanical scoring, append-only logs,

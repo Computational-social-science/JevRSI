@@ -8,6 +8,28 @@
 **DV:** **`val_bpb@300s`** — validation bits per byte at a fixed **300 s wall-clock training
 budget** (FLAW 6: the DV is compute-normalised; cross-hardware and fixed-step comparisons are
 **void**).
+**MANDATORY COVARIATE: `num_steps`.** The 300 s budget does not divide evenly into the variable
+step time, so runs of *identical* code receive different optimizer-step counts. Measured
+2026-09-26 on the frozen baseline configuration (commit `a4123c6`, grad-accum 64, seed 42):
+
+| run | `num_steps` | `val_bpb@300s` |
+|---|---|---|
+| baseline | 44 | 0.863803 |
+| replicate 1 | 42 | 0.889241 |
+| replicate 2 | 42 | 0.888302 |
+
+Two consequences, and they change the estimator:
+
+1. The 42↔44 step difference spans **~0.0254 bpb** — a slope of **~0.0127 bpb per step**. That is
+   larger than any effect this study is powered to detect.
+2. At a **fixed** step count, two independent runs differed by only **0.000939 bpb** — two orders
+   of magnitude smaller.
+
+So `num_steps` is **not** a noise channel but a **confound**: a variant that merely changes
+throughput changes `val_bpb` mechanically, with no change in learning quality. It must be recorded
+for every run and entered as a covariate (or the run must be step-controlled). This is the
+mediation estimand `Delta_total = Delta_fixed_steps + Delta_num_steps · (dbpb/dstep)` used
+throughout §4, and it is the direct implementation of the failure condition F3.
 **Nothing in this document was produced by running a GPU job.** All empirical inputs below
 were read from existing logs and configuration files.
 
