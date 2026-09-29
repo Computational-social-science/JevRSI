@@ -1,0 +1,194 @@
+<!--
+  EXTRACTED 2026-09-29. These manuscript sections were written against the laya-multilingual
+  substrate and are being REBUILT against the live objective (RTX4070_SelfEvolving_Jev_Research_Proposal).
+  They are kept because they are about the MEASUREMENT INSTRUMENT and the FRONTIER, not about
+  that substrate: the two noise floors, the threshold, the true-null accept-rule audit, the prior-art
+  positioning, and the Lean formalisation all transfer unchanged to any objective scored on the same
+  400-case split. What does NOT transfer is section 3 in full -- every number in it was measured on
+  laya-multilingual, and its checkpoints have been deleted.
+-->
+<h2>2. The instrument</h2>
+
+<h3>2.1 Two floors, kept separate</h3>
+<p>
+A loop that compares two runs needs the noise of <em>the difference between two runs</em>, not the noise of one
+run. We measure the two sources separately so that neither can hide inside the other.
+</p>
+<table>
+<thead><tr><th>Floor</th><th>What it is</th><th class="n">Measured</th><th>Provenance</th></tr></thead>
+<tbody>
+<tr><td><strong>A — evaluation</strong></td>
+    <td>case-level cluster bootstrap of the paired difference, 20,000 resamples, resampling the 400 cases
+        rather than the 2,000 questions because five questions share one state</td>
+    <td class="n">SE 1.509 pp<br><span class="prov">paired Δ 41.90 pp<br>95% CI [−44.85, −38.95] pp</span></td>
+    <td class="prov"><code>floor_a_cluster.json</code></td></tr>
+<tr><td><strong>B — training</strong></td>
+    <td>run-to-run spread of five pre-registered seed replicates, identical configuration, df = 4</td>
+    <td class="n">SD 0.400 pp<br><span class="prov">replicate mean 0.5310<br>range 0.5260–0.5360</span></td>
+    <td class="prov"><code>floor_b_laya_runs/floor_b_laya.json</code></td></tr>
+</tbody>
+</table>
+<p>
+The clustering matters and is not cosmetic. Resampling questions instead of cases understates Floor A; the
+design effect was measured, not assumed. Floor B required five full re-trainings because the subject repository
+ships a single seed and nothing published supplies this quantity.
+</p>
+
+<h3>2.2 The threshold, and the two mistakes that were made building it</h3>
+<p>
+The accept threshold composes both floors and allocates the family-wise level over the loop's declared horizon.
+Two defects were found and fixed while calibrating it, and both are reported because both changed the number:
+</p>
+<ol>
+<li><strong>Wrong variance.</strong> The first threshold used the spread of a <em>single arm</em> where the rule
+    compares <em>two noisy runs</em>. That inflated the threshold: on the development split it was 6.05 pp
+    against a defensible 2.39 pp — a factor of 2.5.</li>
+<li><strong>No horizon.</strong> The driver then hard-coded the single-decision factor, so the rule behaved as
+    if the loop would make exactly one decision whatever its horizon. For a long-running loop this is the
+    difference between a valid rule and a decorative one.</li>
+</ol>
+<table>
+<thead><tr><th>Split</th><th class="n">decision SD</th><th class="n">τ, single decision</th><th class="n">τ, horizon 1,000</th></tr></thead>
+<tbody>
+<tr><td>development (600 questions)</td><td class="n">1.220 pp</td><td class="n">2.39 pp</td><td class="n">4.95 pp</td></tr>
+<tr><td>test (2,000 questions)</td><td class="n">0.583 pp</td><td class="n">1.14 pp</td><td class="n">2.36 pp</td></tr>
+</tbody>
+</table>
+<p class="prov">Provenance: <code>tau_calibration.json</code>; split-wise decision SDs from
+<code>dev_decision_noise.json</code>.</p>
+<p>
+The horizon is not decoration either. Because the allocated per-decision level is antitone in the horizon,
+understating it is a validity failure while overstating it is merely conservative — an asymmetry that is
+proved, not asserted (Section 6).
+</p>
+
+<h3>2.3 Does the rule work? An empirical audit under a true null</h3>
+<p>
+The five seed replicates are, by construction, pure noise relative to one another: they differ only by seed.
+Their ten pairwise differences are therefore ten true-null trials, and the accept rule can be run on them.
+</p>
+<table>
+<thead><tr><th>Rule</th><th class="n">Accepted under the null</th><th class="n">Rate</th><th class="n">Projected per-decision rate</th></tr></thead>
+<tbody>
+<tr><td>"accept if the score improves"</td><td class="n">6 / 10</td><td class="n">60%</td><td class="n">50.1%</td></tr>
+<tr><td>threshold rule (τ = 3.11 pp as then configured)</td><td class="n">0 / 10</td><td class="n">0%</td><td class="n">0%</td></tr>
+</tbody>
+</table>
+<p class="prov">Provenance: <code>accept_rule_audit.json</code>. The naive rate is a measured rate on ten trials,
+not a simulation; the analytic tail is quoted only as a projection and carries the caveat that its normality
+assumption rests on a standard deviation estimated from those same ten trials.</p>
+<p>
+This is the first substantive result: <strong>the obvious rule accepts noise more often than it accepts signal</strong>
+when the effect scale is small, and the measured floors are what make that visible.
+</p>
+
+<h3>2.4 A non-determinism result that limits the ledger's meaning</h3>
+<p>
+Five re-runs of one seed, identical configuration, produced five different scores, spread 0.70 pp. Against five
+distinct seeds, the within-seed standard deviation was 0.278 pp (df = 4) and the between-seed 0.400 pp (df = 4),
+a ratio of 0.696 with a 95% interval of [0.225, 2.157]. The interval straddles the pre-registered boundary, so
+the reading is <span class="tag warn">INDETERMINATE</span>: the point estimate suggests a large share of the
+run-to-run spread is non-determinism rather than seed choice, but the data cannot separate them. The honest
+consequence is that <em>a ledger row is not a reproducible datum</em> unless the seed is stated and the run is
+repeatable.
+</p>
+
+
+
+<h2>4. Where this sits in the frontier</h2>
+<p>
+An independent prior-art check was run against the 2025–2026 self-improvement literature, with each arXiv
+identifier verified against its own abstract page and every claim traced to retrieved text. Results:
+</p>
+<table>
+<thead><tr><th>Commitment</th><th>Verdict</th><th>Nearest prior work</th></tr></thead>
+<tbody>
+<tr><td>Fixed wall-clock budget as the generation constraint</td><td><span class="tag warn">partially covered</span></td>
+    <td>the rationale is published (compute-normalised acceptance; the critique of iteration counts as a compute proxy). The wall-clock axis and the budget's invariance across generations are what remain.</td></tr>
+<tr><td>Measured noise floors composed into the accept threshold</td><td><span class="tag warn">mechanism pre-empted</span></td>
+    <td>A 2026 method already gates acceptance on an empirically calibrated noise band. We must not claim that
+        mechanism. What survives is the <em>decomposition</em> of two independently measured sources with reported
+        degrees of freedom, pre-registered before the loop runs, and used as the accept/reject decision for a
+        training-code change.</td></tr>
+<tr><td>The meaning-ceiling guardrail as a validity condition</td><td><span class="tag ok">not found</span></td>
+    <td>No examined paper uses a metric's published meaning boundary as an acceptance condition. The nearest
+        work measures saturation as a benchmark property; none of it routes a boundary crossing into a named
+        failure mode instead of a headline claim.</td></tr>
+</tbody>
+</table>
+<div class="box win">
+<span class="lbl">Consequence for framing</span>
+The defensible contribution is the <em>measurement protocol</em> — two floors, reported degrees of freedom,
+pre-registration, and an empirical audit of the rule under a true null — plus the mechanism test of Section 3.5,
+which operationalises a published warning that had no test. Claims about the mechanism of noise-floor acceptance
+must be cited to prior work, not staked as novel. The ceiling guardrail is retained as a <em>trigger for
+mandatory reporting</em> of the mechanism decomposition, not as a prohibition: Section 3.5 shows that reaching
+above the reference is legitimate, so stopping there would have been an error.
+
+<strong>Correction (2026-09-29).</strong> An earlier version of this work treated the dataset card's
+<em>factor ceiling</em> (0.704) and <em>teacher self-agreement</em> (0.735) as upper bounds on
+attainable accuracy. Public measurements on the same 400-case, 2,000-decision split refute that
+reading: the fine-tuned <code>laya-typed-decisions</code> checkpoint scores 0.768, and a training-free
+readout (AnyJev L2, Nokia&nbsp;Applied&nbsp;Research, 869&#9733;) scores 0.786 on a 4B backbone and
+0.799 on a 30B-A3B backbone. Those figures sit <em>above</em> 0.735, so 0.735 bounds only systems that
+reproduce the teacher's own samples; it does not bound a system that predicts the scenario. The
+constants are therefore reclassified — 0.470 is a floor, 0.735 and 0.799 are reference lines, and 0.799
+is the figure to beat. Source: <code>docs/RESEARCH_GOAL_v2_2026-09-29.md</code>.
+</div>
+
+
+
+<h2>5. Negative results and retractions</h2>
+<p>Recorded so that the same ground is not covered twice.</p>
+<ol>
+<li><strong>The step axis is dead.</strong> 5.6× compute → +2.17 pp (Section 3.2).</li>
+<li><strong>The instrument cannot see the search space.</strong> Threshold ≥ entire observable range
+    (Section 3.3).</li>
+<li><strong>Vocabulary was not the handicap.</strong> Hypothesised, measured, refuted: 1.04–1.07× token cost.</li>
+<li><strong>A retracted plateau claim.</strong> A +0.17 pp step was once narrated as a plateau and then
+    retracted when it proved to be below the project's own measured noise. The plateau was later re-established
+    on two independent steps and 5.6× compute — but the retraction stands as the correct response to the earlier,
+    weaker evidence.</li>
+<li><strong>A retracted arithmetic error.</strong> An extrapolation quoted 4,369 hours per generation; the
+    correct figure is 3.4–4.4 hours. The error was a unit mislabel, and it was found by re-deriving rather than
+    by review.</li>
+<li><strong>Same-seed runs are not identical.</strong> Spread 0.70 pp, ratio indeterminate (Section 2.4).</li>
+<li><strong>A degenerate threshold.</strong> The first mechanism test used an absolute cut that 2 of 2,000
+    items satisfied (Section 3.5).</li>
+<li><strong>A falsified proof.</strong> An early Lean scaffold contained a placeholder dressed as a proof. It was
+    deleted; no unproved statement is permitted to appear in the formalization.</li>
+</ol>
+
+
+
+<h2>6. Formalization</h2>
+<p>
+The parts of the framework that are mathematical objects are stated in Lean 4 and checked against the kernel
+rather than asserted. The statistical core, in <code>lean/JevRSI/AcceptRule.lean</code>, contains four closed
+theorems with no <code>sorry</code>:
+</p>
+<ul>
+<li>the per-decision level allocated over a horizon is <strong>antitone</strong> in that horizon, so a longer
+    planned run can only lower the per-decision level — the formal content of the defect in Section 2.2;</li>
+<li>the same ordering is <strong>strict</strong> for a genuinely longer horizon, which is why the horizon must be
+    declared rather than assumed away;</li>
+<li>the combined variance is <strong>monotone in each floor</strong>, so an underestimated floor yields an
+    anti-conservative rule;</li>
+<li>the threshold, as a non-negative multiple of that variance, is monotone in the floors as well.</li>
+</ul>
+<p>
+Writing these found a real constraint rather than confirming a guess: the antitone statement is
+<em>false</em> without a positivity hypothesis, because field division sends <code>α / 0</code> to zero rather
+than to infinity. The hypothesis is load-bearing.
+</p>
+<div class="box">
+<span class="lbl">Scope of the formalization — stated plainly</span>
+A formal proof can only cover a mathematical object. The measured floors are <em>measurements</em>, not theorems;
+the benchmark's published boundary is a documentary claim, not a proposition. The kernel can therefore certify
+"given these floors and this horizon, the rule's level is what we say it is" — it cannot certify the floors or
+the boundary. Conflating the two would dress an empirical premise as a proved one.
+</div>
+<p class="prov">Toolchain pinned to Lean v4.34.1 with the matching Mathlib release v4.34.1, chosen because
+Mathlib publishes a paired tag per stable release; a release candidate was rejected as a basis for a
+reproducibility claim. Verified locally: the Lean kernel checks proofs rather than parsing them.</p>
+

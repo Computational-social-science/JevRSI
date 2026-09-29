@@ -1,0 +1,28 @@
+{
+  "n": 2000,
+  "accuracy": 0.529,
+  "chance_corrected_skill": 0.21120833333333333,
+  "per_type": {
+    "boolean": {
+      "n": 600,
+      "accuracy": 0.17833333333333334
+    },
+    "choice": {
+      "n": 600,
+      "accuracy": 0.71
+    },
+    "score": {
+      "n": 800,
+      "accuracy": 0.65625
+    }
+  },
+  "split": "test",
+  "weights": "measurement\\hillclimb\\it0_baseline\\model.safetensors",
+  "weights_fingerprint": {
+    "size": 1287653720,
+    "crc32_head": 1623995713,
+    "crc32_tail": 2829184554
+  },
+  "weights_fingerprint_str": "1287653720:60cc3541:a8a1ee2a",
+  "peak_reserved_gib": 1.594
+}

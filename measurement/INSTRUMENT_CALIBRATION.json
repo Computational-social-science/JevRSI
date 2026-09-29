@@ -1,0 +1,75 @@
+{
+  "_what_this_is": "Instrument calibration. These are PROPERTIES OF THE MEASUREMENT, not of any research objective: how much a score moves when nothing changed, and how much it must move before the move is real. They are recorded here in one place so they survive the deletion of any particular objective's checkpoints, and so a new objective inherits a threshold instead of re-deriving one by feel.",
+
+  "_why_it_is_not_objective_specific": "The accept rule in the live proposal is 'the bootstrap 95% CI lower bound of (elite - L1 seed) on V is strictly positive, over >= 3 seeds'. Measured on this benchmark, that NAIVE rule fires on 5 of 10 pure-noise comparisons (measurement/accept_rule_audit.py). A criterion that accepts half of pure noise cannot support a success claim. These numbers are what replace it: a threshold that fires on 0 of 10. This is not an objection to the objective -- it is the instrument the objective needs in order to be decidable.",
+
+  "measured_on": {
+    "benchmark": "LocalLLaMA/typed-decisions",
+    "splits": "train 960 / dev 120 / calibration 120 / test 400 (2000 questions), verified case-by-case against protocol.json",
+    "instrumented_arm": "laya-multilingual 322M, full-parameter, 5 pre-registered seeds"
+  },
+
+  "floor_B_run_to_run": {
+    "value_pp": 0.40,
+    "sd": 0.0040000000000000036,
+    "df": 4,
+    "n_replicates": 5,
+    "replicate_accuracies": [0.5300, 0.5340, 0.5290, 0.5360, 0.5260],
+    "what_it_is": "SD of the final score across 5 seeds that differed ONLY by seed. This is the reproducibility floor of a single run of this pipeline on this host.",
+    "caveat": "df = 4. Small-sample: report the df beside the value, never the value alone.",
+    "source": "measurement/floor_b_laya_runs/floor_b_laya.json"
+  },
+
+  "floor_A_measurement_sampling": {
+    "se_pp": 1.0668,
+    "design_effect": 1.384,
+    "what_it_is": "Case-level cluster bootstrap over the 400 test cases, because the 5 questions of a case are not independent. The design effect above 1 is that clustering, and it is why a binomial SE would be wrong here.",
+    "source": "measurement/floor_a_cluster_bootstrap.py"
+  },
+
+  "dev_split_resolution": {
+    "acc_se_pp": 2.14,
+    "n_cases": 120,
+    "n_questions": 600,
+    "what_it_is": "The dev split is SMALLER than test (600 vs 2000 questions), so its paired SE is larger and any threshold used for selection on dev must be larger than the test threshold. Quoting a test-derived threshold for a dev decision would make the loop accept noise.",
+    "source": "measurement/fitness_resolution.json"
+  },
+
+  "interpretability_floor_pp": {
+    "value": 1.7256238807393025,
+    "what_it_is": "Below this, two adjacent single-seed points are not narratable as a trend. Derived from the measured single-split SD.",
+    "source": "measurement/learning_curve/learning_curve.json"
+  },
+
+  "thresholds": {
+    "tau_test": {
+      "value_pp": 3.11,
+      "value": 0.031127666950555827,
+      "components": "1.96 x paired test SE, combined over the two measured floors",
+      "use_for": "a decision made on the frozen 400-case test split"
+    },
+    "tau_dev": {
+      "value_pp": 4.95,
+      "value": 0.04948677453107525,
+      "use_for": "a selection decision made on the 120-case dev split, Bonferroni-corrected over a horizon of 1000 decisions"
+    }
+  },
+
+  "accept_rule_audit": {
+    "design": "5 pre-registered replicates differing only by seed give 10 unordered pairs, every one of which is a trial under a TRUE NULL: any difference is noise by construction",
+    "naive_rule_delta_gt_0": {"fired": 5, "of": 10, "rate": 0.50, "ci95": [0.262, 0.878]},
+    "tau_rule_delta_gt_tau": {"fired": 0, "of": 10, "rate": 0.00, "ci95": [0.0, 0.308]},
+    "largest_noise_difference_pp": 1.00,
+    "tau_pp": 3.11,
+    "margin": "3.1x",
+    "honest_note": "The analytic projection of the tau rule's per-decision false-accept rate (~4.6e-8) assumes normality and an SD from 10 trials, and is an order-of-magnitude extrapolation. The empirical 0/10 is the hard evidence.",
+    "source": "measurement/accept_rule_audit.py"
+  },
+
+  "what_a_new_objective_must_do_with_this": [
+    "Re-derive Floor B on its OWN seed, because 0.40 pp is a property of this pipeline's training path. Do not inherit it silently.",
+    "Keep Floor A. It is a property of the 400-case test split, so it transfers to any model scored on that split.",
+    "Replace the proposal's 'CI lower bound > 0' with 'improvement > tau' before running anything, or the loop will accept noise at a rate of about one in two.",
+    "State the df beside every SD. A pilot once overstated this floor by 3.53x because it was measured at df = 1."
+  ]
+}

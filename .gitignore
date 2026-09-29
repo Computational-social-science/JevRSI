@@ -1,57 +1,16 @@
-# ============================================================================
-# OASP — D:/2026-AI4S/autoresearch
-# Rule: version code, configs and small provenance files.
-#       Never version bulk data, run outputs, regenerable figures, legacy material.
-# ============================================================================
-
-# --- 1. Run outputs & bulk data (append-only JSONL, regenerable plots) -------
-runs/
-analysis/
-.cache/
-benchmarks/*/items.jsonl
-*.parquet
-*.arrow
-*.feather
-
-# --- 2. Legacy / third-party material that must never enter this repo -------
-archive/
-deer-flow-main/
-.git-deerflow-legacy-*/
-
-# --- 3. Secrets -------------------------------------------------------------
-.env
-.env.*
-*.env.local
-!.env.example
-
-# --- 4. Model weights, checkpoints, binary artefacts ------------------------
-*.pt
-*.bin
-*.ckpt
-*.pth
+# Derived data and weights. Every number in every document is recomputed from a script, so these are
+# reproducible artifacts rather than sources. Excluded to keep the repository clonable and small.
+measurement/features/
+measurement/logit_bundles/
+measurement/floor_b_lora_runs/
+pipeline_runs/
 *.safetensors
-*.h5
-*.hdf5
-*.npy
+*.pt
 *.npz
-*.pkl
-*.pickle
-*.db
-*.sqlite
-
-# --- 5. Python / tooling ----------------------------------------------------
 __pycache__/
-*.py[cod]
-.pytest_cache/
-.venv/
-venv/
-
-# --- 6. Logs, temp and OS/editor clutter ------------------------------------
-*.log
-*.tmp
-*.bak
-~$*
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
+*.pyc
+# Binary sources: the original brief and cited papers are inputs, not results.
+*.docx
+*.pdf
+*.svg
+*.png

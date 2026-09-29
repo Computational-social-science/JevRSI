@@ -1,0 +1,11 @@
+{
+  "boolean": {
+    "temperature": 1.0
+  },
+  "choice": {
+    "temperature": 1.0
+  },
+  "score": {
+    "temperature": 1.0
+  }
+}

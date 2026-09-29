@@ -1,0 +1,137 @@
+{
+  "baseline": {
+    "steps": 2000,
+    "batch_cases": 4,
+    "lr": 1e-05,
+    "head_lr": 0.0001
+  },
+  "seed": 20260921,
+  "schedule": [
+    "steps=3000",
+    "lr=2e-5",
+    "steps=1500",
+    "head_lr=2e-4",
+    "batch_cases=8"
+  ],
+  "tau_dev": 0.060539423026315625,
+  "tau_test": 0.031127666950555827,
+  "floor_b": 0.0040000000000000036,
+  "dev_se_paired": 0.03036503301835772,
+  "test_se_paired": 0.014839840243089614,
+  "baseline_dev": 0.5283333333333333,
+  "best_config": {
+    "steps": 2000,
+    "batch_cases": 4,
+    "lr": 1e-05,
+    "head_lr": 0.0001
+  },
+  "best_dev": 0.5283333333333333,
+  "n_accepted": 0,
+  "n_iterations": 5,
+  "naive_chain": [
+    0.5283333333333333,
+    0.5566666666666666,
+    0.5566666666666666,
+    0.5566666666666666,
+    0.5566666666666666,
+    0.5566666666666666
+  ],
+  "tau_chain": [
+    0.5283333333333333,
+    0.5283333333333333,
+    0.5283333333333333,
+    0.5283333333333333,
+    0.5283333333333333,
+    0.5283333333333333
+  ],
+  "naive_end_dev": 0.5566666666666666,
+  "tau_end_dev": 0.5283333333333333,
+  "history": [
+    {
+      "it": 1,
+      "proposal": "steps=3000",
+      "config": {
+        "steps": 3000,
+        "batch_cases": 4,
+        "lr": 1e-05,
+        "head_lr": 0.0001
+      },
+      "dev_acc": 0.5566666666666666,
+      "delta": 0.02833333333333332,
+      "accepted": false,
+      "best": 0.5283333333333333
+    },
+    {
+      "it": 2,
+      "proposal": "lr=2e-5",
+      "config": {
+        "steps": 2000,
+        "batch_cases": 4,
+        "lr": 2e-05,
+        "head_lr": 0.0001
+      },
+      "dev_acc": 0.5216666666666666,
+      "delta": -0.00666666666666671,
+      "accepted": false,
+      "best": 0.5283333333333333
+    },
+    {
+      "it": 3,
+      "proposal": "steps=1500",
+      "config": {
+        "steps": 1500,
+        "batch_cases": 4,
+        "lr": 1e-05,
+        "head_lr": 0.0001
+      },
+      "dev_acc": 0.5216666666666666,
+      "delta": -0.00666666666666671,
+      "accepted": false,
+      "best": 0.5283333333333333
+    },
+    {
+      "it": 4,
+      "proposal": "head_lr=2e-4",
+      "config": {
+        "steps": 2000,
+        "batch_cases": 4,
+        "lr": 1e-05,
+        "head_lr": 0.0002
+      },
+      "dev_acc": 0.5216666666666666,
+      "delta": -0.00666666666666671,
+      "accepted": false,
+      "best": 0.5283333333333333
+    },
+    {
+      "it": 5,
+      "proposal": "batch_cases=8",
+      "config": {
+        "steps": 2000,
+        "batch_cases": 8,
+        "lr": 1e-05,
+        "head_lr": 0.0001
+      },
+      "dev_acc": null,
+      "delta": null,
+      "accepted": null,
+      "best": 0.5283333333333333,
+      "failed": true
+    }
+  ],
+  "test": {
+    "accuracy": 0.529,
+    "chance_corrected_skill": 0.21120833333333333,
+    "untrained": 0.35
+  },
+  "note": "Proposals are a fixed pre-registered schedule; selection is on dev; tau is measured on dev; the frozen test split is scored once at the end.",
+  "deviation": {
+    "id": "DEVIATION 1",
+    "what": "Proposal 5 (batch_cases=8) was stopped mid-run; it did not complete its 2000 steps.",
+    "when": "after all 4 completed proposals had been judged (0 accepted)",
+    "why": "Measured step time was ~2.0 s/step from step 1 versus 0.199 s/step for a healthy iteration, i.e. ~10x cost, from the allocator's slow path near the 12 GiB ceiling, with no bounded upper limit -- iteration 4 showed the same path worsening mid-run (0.199 -> 0.688 s/step sustained).",
+    "bias_direction": "Stopping a pre-registered schedule early is optional stopping and can favour 'nothing accepted'. Disclosed here rather than absorbed.",
+    "why_conclusion_is_invariant": "The claim under test is about the RULE's behaviour, not the count of accepts: iteration 1 already supplies the decisive case (the naive rule would accept its +2.83 pp, the tau rule rejects it). Every possible verdict for proposal 5 -- accept or reject -- leaves that demonstration intact.",
+    "reported_as": "0 accepted of 5 scheduled, 4 completed; iteration 5 recorded as failed"
+  }
+}

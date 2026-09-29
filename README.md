@@ -1,120 +1,100 @@
-# OASP — Optimization-as-Search Program
+# JevRSI
 
-> **Object of study:** the **landing form (落地形态)** of reported LLM optimization
-> strategies — not the benchmarks they are measured on, and not prompting in general.
->
-> Reported practice: a strategy `S` (CoT, self-consistency, ReAct, ToT, …) is
-> published, but its evaluation collapses to **one hand-authored static prompt
-> template** evaluated **once** on **one static benchmark**. We measure what that
-> collapse costs and how much of the reported effect is an artifact of the sampled point.
+> **The research objective is [`RTX4070_SelfEvolving_Jev_Research_Proposal.md`](RTX4070_SelfEvolving_Jev_Research_Proposal.md).**
+> **The single source of truth is [`CURRENT_OBJECT.md`](CURRENT_OBJECT.md).** If any file disagrees with
+> those two, those two win.
 
-| | |
+## The objective, in one paragraph
+
+A 24/7 self-evolving optimisation loop for a Jev-style decision model, under two hard constraints: **one
+RTX 4070 (12 GB, 150 W cap)** and **zero external API**. Seed: `AgentJev-0.6B` (Qwen3-0.6B backbone,
+permutation-equivariant scoring head) + QLoRA rank-16 + AnyJev L1 calibration. A deterministic
+multi-fidelity controller (Select → Mutate → Train → Evaluate → Archive → Persist) searches for a
+configuration that beats the L1-calibrated seed on a frozen held-out set, with every attempt logged and
+every failure shipped.
+
+## What is already built, and what is not
+
+| | status |
 |---|---|
-| **Effect** | **HPFE — Heuristic Prompt Fixation Effect**: strategies fixate on a hand-sampled point rather than searching prompt space |
-| **Insight** | **OASP — Optimization-as-Search Principle**: prompt-space search, not single-point scoring, is the right model of LLM optimization |
-| **Protocol** | [`RESEARCH_PROTOCOL.md`](RESEARCH_PROTOCOL.md) — pre-registered before data collection |
-| **Brief** | [`archive/nhb_2026/Problem.docx`](archive/nhb_2026/Problem.docx) |
-| **Supersedes** | the NHB LLM-mistranslation workspace, archived under `archive/nhb_2026/` |
+| **The instrument** — two measured noise floors, a pre-registered threshold, and a true-null audit of the accept rule | ✅ built, and calibrated on this benchmark |
+| **The objective** — the six-week single-GPU plan | ⬜ not started |
+| **The loop** — controller, MAP-Elites archive, JSONL state machine | ⬜ not built |
+| **Checkpoints for the seed** | ⬜ none; the 11 deleted checkpoints belonged to a superseded substrate |
 
-> **Scope note (added 2026-09-26; FLAW 2 of [`docs/critical_review_2026-09-26.md`](docs/critical_review_2026-09-26.md)).**
-> The measurement work this README documents — the MCQ/ARC variant matrix, its metrics, and its
-> negative pilot result — is the **pilot**, and it measures **construct A** (measurement-instrument
-> method variance: reproducibility of a reported score under evaluator-authored surface variation).
-> It is **not** the project's object. The project's object is **construct B** (the landing form of an
-> optimization strategy: whether the researcher's hand-authored template determines the result),
-> carried by `nanochat`'s `program.md` — the file the human, not the agent, edits — and construct B
-> is the primary object of study; it has not been tested yet. Nothing here is deleted; existing
-> claims about "the project" are to be read as claims about the pilot.
->
-> **DV note (added 2026-09-26; FLAW 6).** The construct-B dependent variable is written
-> **`val_bpb@300s`** — validation bits per byte read at a **fixed 300-second wall-clock training
-> budget**, hence compute-normalised. Cross-hardware comparisons and comparisons against fixed-step
-> runs are **void**.
+## The one thing to settle before running anything
 
----
+The proposal's success criterion is *"the lower bound of a bootstrap 95% CI (elite − L1 seed) on V is
+strictly positive."* Measured on this benchmark, **that rule fires on 5 of 10 pure-noise comparisons**
+(`measurement/accept_rule_audit.py` — five replicates differing only by seed give ten pairs, every one a
+trial under a true null). A rule that accepts half of pure noise cannot support a success claim.
 
-## The two names are deliberately distinct
+The replacement is already calibrated and in `measurement/INSTRUMENT_CALIBRATION.json`:
 
-The brief requires the **effect** (observable, quantifiable) and the **insight**
-(falsifiable, mechanism-explaining) to be named with *different roots* so they can
-never be confused in a manuscript. HPFE vs OASP satisfies that; each carries its own
-falsifier, listed in [`docs/theory.md`](docs/theory.md).
+| quantity | value | scope |
+|---|---|---|
+| **Floor A** — measurement sampling | SE **1.07 pp**, design effect 1.384 | a property of the 400-case split; **transfers to any model** |
+| **Floor B** — run-to-run | SD **0.40 pp**, df = 4 | a property of *this training path*; **re-derive for the QLoRA seed** |
+| **τ (test)** | **3.11 pp** | decisions on the frozen 400-case split |
+| **τ (dev)** | **4.95 pp** | selection on the 120-case split, Bonferroni over 1000 decisions |
+| naive rule | 5/10 fire | **replace with Δ > τ**, which fires 0/10 |
 
----
-
-## What makes this a test rather than an assertion
-
-| Naive version | What this program does instead |
-|---|---|
-| "prompts matter" | **IPS (M2)**: fraction of items whose correctness *flips* across 32 semantically equivalent prompts. Under exact invariance its null is **exactly 0** — so any non-zero value is evidence needing no null distribution, only a CI. |
-| "our prompt is better" | search on a **dev** split, gain measured on a **held-out** split (M7), against the noise floor (M6) |
-| "the failure modes" | reason codes assigned **blind to score**, then tested for score separation (M8 / Fig 4) |
-| "the optimizer improved it" | `config.assert_decoupled()` **hard-fails** if the optimizer is also a target |
-| "it ran" | the search reports `stalled` loudly when nothing improved (anti-spin) |
-
----
+This is not an objection to the objective. It is the instrument the objective needs in order to be
+decidable — and it is already paid for.
 
 ## Layout
 
 ```
 autoresearch/
-├── RESEARCH_PROTOCOL.md      pre-registration: hypotheses, metrics, decision rules
-├── docs/theory.md            effect/insight definitions + falsifiers
-├── oasp/                     the harness
-│   ├── config.py             single source of truth: paths, models, benchmarks, thresholds
-│   ├── prompt_space.py       the 180-point surface-feature prompt space + sampling
-│   ├── benchmark.py          frozen stimulus sets with source SHA-256
-│   ├── evaluator.py          mechanical scorer (no LLM judge) + regression tests
-│   ├── llm.py                Ollama / OpenRouter client with retries
-│   ├── runner.py             crossed design with resume
-│   ├── landscape.py          hill-climb + fallback ledger + anti-local-optimum mechanisms
-│   ├── git_memory.py         accept = commit, reject = reset
-│   ├── stats.py              M1–M8
-│   ├── figures.py            publication figures
-│   └── analyze.py            report CLI
-├── benchmarks/               frozen items + provenance
-├── runs/                     raw JSONL + manifests (append-only, resumable)
-├── analysis/                 reports + figures
-├── scripts/                  screen_models.py, run_noise_floor.py, run_landscape.py
-└── archive/nhb_2026/         prior project, preserved
+├── CURRENT_OBJECT.md                          SSOT: the object, the retirements, the drift checks
+├── RTX4070_SelfEvolving_Jev_Research_Proposal.md   THE OBJECTIVE
+├── measurement/
+│   ├── INSTRUMENT_CALIBRATION.json            the two floors, τ, the accept-rule audit — self-contained
+│   ├── tau_calibration.py                     derive τ for any split, with multiplicity control
+│   ├── floor_a_cluster_bootstrap.py           cluster bootstrap (questions nest inside cases)
+│   ├── accept_rule_audit.py                   empirical false-accept rate under a true null
+│   ├── provenance.py                          zlib fingerprint; hashlib segfaults with torch+pyarrow
+│   ├── audit_pipeline.py                      structural audit; runs as a preflight gate
+│   └── test_*.py, verify_split_against_protocol.py, eval_laya_split.py
+├── figures/                                   generators + programmatic layout audit (fig_qc.py)
+├── scripts/check_object_purity.py             asserts ABSENCE of retired objects
+├── scripts/check_citation_provenance.py       every external number carries a resolvable source
+└── archive/                                   everything superseded, with hash manifests
 ```
 
----
-
-## Run
+## Gates — all must pass before any claim
 
 ```bash
-# 1. Screen targets for capability floor and format adherence (choose targets from data)
-python scripts/screen_models.py --items 10 --budgets 64 192
-
-# 2. The sensitivity matrix: 32 variants x 60 items x N models
-python -m oasp.runner --run-id pilot_v1_dev --benchmark arc_easy \
-    --models gemma3_4b qwen3_4b mistral_7b gemma3_12b \
-    --variants 32 --items-dev 60 --items-test 60 --splits dev \
-    --num-predict 192 --concurrency 1
-
-# 3. Noise floor (M6)
-python scripts/run_noise_floor.py --run-id noise_v1 --models gemma3_4b mistral_7b
-
-# 4. Analysis -> report.md + figures
-python -m oasp.analyze --run-id pilot_v1_dev --split dev --noise-run-id noise_v1
-
-# 5. The search landscape (H2/H3)
-python scripts/run_landscape.py --run-id search_v1 --generations 40 --items 30
-python -m oasp.analyze --run-id search_v1 --landscape
+python scripts/check_object_purity.py
+python measurement/audit_pipeline.py
+python measurement/audit_manuscript_numbers.py
+python measurement/test_meaning_boundary.py
+python measurement/test_release_weights.py
+python measurement/verify_split_against_protocol.py
+python scripts/check_citation_provenance.py
+python figures/fig_qc.py
 ```
 
-No install step: the harness uses only `requests`, `numpy`, `pandas`, `scipy`,
-`matplotlib`, `pyarrow` and stdlib `subprocess`-driven git.
+## Rules
 
----
+1. **No unverified numbers.** Every external figure carries a resolvable source (HF model-id + file path,
+   arXiv id, or GitHub repo + path + commit).
+2. **The frozen split is opened once.** Selection on dev/medium; the held-out set at pre-registered checkpoints.
+3. **Negative results are first-class**, with their mechanism and their power.
+4. **Retire by moving, not by annotating** — and always leave an SSOT behind.
+5. **State the df beside every SD.** A pilot once overstated the run-to-run floor by 3.53× because it was
+   measured at df = 1.
+6. **The agent does not retire the owner's objective.** An audit may report that a cited figure has no
+   source; whether a stated objective is still pursued is the owner's decision. (Learned 2026-09-29, the
+   hard way — see `archive/superseded_2026-09-29_object_cleanup/MANIFEST.json`.)
 
-## Two rules that keep the results honest
+## Retired
 
-1. **A pilot number is never a confirmatory number.** Runs whose id contains
-   `pilot` are labelled `exploratory` in their manifest; the confirmatory H2 test
-   needs ≥150 held-out items, not 60 (`RESEARCH_PROTOCOL.md` §6).
-2. **Nothing in the scoring path calls a model.** `oasp/evaluator.py` is the only
-   scorer, its regression tests live in `tests/test_evaluator.py`, and a false
-   extraction there would appear as a *finding* about prompt sensitivity rather
-   than as a bug — which is why it is tested in both directions.
+`prompt-multiplier` / HPFE / OASP / κ · Gate B / `val_bpb` / recursive self-training collapse ·
+Zarankiewicz topic selection · MentalBench · **the laya-multilingual substrate as the optimisation
+target** (its 11 checkpoints and manuscript are archived; its measured floors survive in
+`INSTRUMENT_CALIBRATION.json`) · **0.704 / 0.735 as attainable-accuracy ceilings** (public measurements on
+the same split reach 0.768, 0.786, 0.799).
+
+`nanochat` / `val_bpb` remain **retired as an object but live as the instrument** — `autoresearch-win-rtx`
+is the sanctioned loop substrate. Borrow the framework; do not import its numbers.

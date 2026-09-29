@@ -1,0 +1,90 @@
+{
+  "_what_this_is": "Day-1 baseline metrics recomputed from saved logits by the frozen evaluator's own metric functions. This replaces transcribed stdout as the audit's source for them.",
+  "_source_logits": "D:\\2026-AI4S\\autoresearch\\measurement\\day1_raw_dev.json",
+  "_metric_code": "E:\\2026-AI4S\\agent-jev\\scripts\\evaluate_split.py",
+  "_recomputation_agrees_with_recorded_stdout": true,
+  "arms": {
+    "raw": {
+      "arm": "raw (T=1.0)",
+      "temperatures": {
+        "(all)": 1.0
+      },
+      "n": 600,
+      "accuracy": 0.815,
+      "chance_corrected": 0.732639,
+      "soft_cross_entropy": 0.828647,
+      "brier_sum": 0.049129,
+      "ece_10_bins_vs_gold_argmax": 0.136783,
+      "score_expectation_mae": 0.186187,
+      "by_type": {
+        "boolean": {
+          "n": 180,
+          "accuracy": 0.883333,
+          "soft_cross_entropy": 0.479753,
+          "brier_sum": 0.036577,
+          "gold_mass_at_selected_option": 0.753241,
+          "ece_10_bins_vs_gold_argmax": 0.105152
+        },
+        "choice": {
+          "n": 180,
+          "accuracy": 0.783333,
+          "soft_cross_entropy": 0.960905,
+          "brier_sum": 0.066017,
+          "gold_mass_at_selected_option": 0.603926,
+          "ece_10_bins_vs_gold_argmax": 0.127866
+        },
+        "score": {
+          "n": 240,
+          "accuracy": 0.7875,
+          "soft_cross_entropy": 0.991123,
+          "brier_sum": 0.045877,
+          "gold_mass_at_selected_option": 0.575285,
+          "ece_10_bins_vs_gold_argmax": 0.173167,
+          "score_expectation_mae": 0.186187
+        }
+      }
+    },
+    "L1": {
+      "arm": "shipped L1",
+      "temperatures": {
+        "boolean": 1.0717734625362931,
+        "choice": 1.0352649238413776,
+        "score": 1.0717734625362931
+      },
+      "n": 600,
+      "accuracy": 0.815,
+      "chance_corrected": 0.732639,
+      "soft_cross_entropy": 0.824255,
+      "brier_sum": 0.047574,
+      "ece_10_bins_vs_gold_argmax": 0.148094,
+      "score_expectation_mae": 0.184907,
+      "by_type": {
+        "boolean": {
+          "n": 180,
+          "accuracy": 0.883333,
+          "soft_cross_entropy": 0.477497,
+          "brier_sum": 0.035638,
+          "gold_mass_at_selected_option": 0.753241,
+          "ece_10_bins_vs_gold_argmax": 0.113919
+        },
+        "choice": {
+          "n": 180,
+          "accuracy": 0.783333,
+          "soft_cross_entropy": 0.956212,
+          "brier_sum": 0.064418,
+          "gold_mass_at_selected_option": 0.603926,
+          "ece_10_bins_vs_gold_argmax": 0.135174
+        },
+        "score": {
+          "n": 240,
+          "accuracy": 0.7875,
+          "soft_cross_entropy": 0.985356,
+          "brier_sum": 0.043893,
+          "gold_mass_at_selected_option": 0.575285,
+          "ece_10_bins_vs_gold_argmax": 0.1888,
+          "score_expectation_mae": 0.184907
+        }
+      }
+    }
+  }
+}

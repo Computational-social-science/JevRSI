@@ -1,0 +1,51 @@
+{
+  "_what_this_is": "Head refit on cached frozen-backbone features, vs the head already in the checkpoint. Both scored on the same split with the evaluator's own metrics.",
+  "_question": "Is the 596M backbone update the lever, or would 2.37M head parameters on frozen features have done the same job?",
+  "checkpoint": "E:\\2026-AI4S\\agent-jev\\checkpoints\\autoresearch\\final.safetensors",
+  "tag": "final",
+  "fit_split": "train",
+  "score_split": "calibration",
+  "head_params_M": 2.369,
+  "backbone_params_M": 596.0,
+  "refit_seconds": 16.5,
+  "lora_replicate_seconds": 7596,
+  "speedup_vs_one_lora_replicate": 461.8,
+  "shipped": {
+    "accuracy": 0.7783333333333333,
+    "chance_corrected": 0.6726388888888889,
+    "soft_cross_entropy": 0.8650686558987946,
+    "brier_sum": 0.062049706755366855,
+    "n": 600
+  },
+  "refit": {
+    "accuracy": 0.7633333333333333,
+    "chance_corrected": 0.6547222222222223,
+    "soft_cross_entropy": 0.8609951954831679,
+    "brier_sum": 0.06226116184139031,
+    "n": 600
+  },
+  "gap_refit_minus_shipped": {
+    "accuracy": -0.015,
+    "chance_corrected": -0.017917,
+    "soft_cross_entropy": -0.004073,
+    "brier_sum": 0.000211
+  },
+  "_limits": [
+    "seed checkpoint only: says nothing yet about what 600 LoRA steps buy",
+    "single fit, no seed dispersion: a small gap is not evidence",
+    "dev and test untouched"
+  ],
+  "feature_cache_fidelity": {
+    "max_abs_diff": 0.0,
+    "rel": 0.0,
+    "statement": "The cached features reproduce the model's own logits BIT-IDENTICALLY (model._score(encode_candidates(batch)) vs model(batch)['logits'], both splits). The 16-second refit therefore measured the model, not the cache.",
+    "source": "measurement/features/manifest_final.json -> fidelity_check"
+  },
+  "cost_comparison": {
+    "cache_5400_questions_seconds": 442.4,
+    "refit_head_seconds": 16.5,
+    "one_lora_replicate_seconds": 7596,
+    "cache_plus_refit_vs_one_replicate": 16.6,
+    "note": "Even paying the cache from scratch, the cheap route is ~16x cheaper than ONE replicate, and the cache is reusable across every future head experiment."
+  }
+}

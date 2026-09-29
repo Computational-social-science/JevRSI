@@ -1,0 +1,41 @@
+{
+  "replicates": [
+    0.53,
+    0.534,
+    0.529,
+    0.536,
+    0.526
+  ],
+  "n_trials": 10,
+  "deltas": [
+    -0.0040000000000000036,
+    0.0010000000000000009,
+    -0.006000000000000005,
+    0.0040000000000000036,
+    0.0050000000000000044,
+    -0.0020000000000000018,
+    0.008000000000000007,
+    -0.007000000000000006,
+    0.0030000000000000027,
+    0.010000000000000009
+  ],
+  "max_abs_delta": 0.010000000000000009,
+  "sd_delta": 0.005827139568909913,
+  "tau": 0.031127666950555827,
+  "floor_b": 0.0040000000000000036,
+  "naive_accepts": 6,
+  "naive_rate": 0.6,
+  "naive_ci95": [
+    0.26237807660694507,
+    0.8784477418801728
+  ],
+  "tau_accepts": 0,
+  "tau_rate": 0.0,
+  "tau_ci95": [
+    0.0,
+    0.3084971078187608
+  ],
+  "projected_naive_rate": 0.5009225,
+  "projected_tau_rate": 0.0,
+  "note": "Null trials are real comparisons between pre-registered replicates that differ only by seed, so any difference is noise by construction. The projection uses only the SD measured from those trials."
+}
