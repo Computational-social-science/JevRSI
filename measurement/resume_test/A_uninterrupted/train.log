@@ -1,35 +1,0 @@
-[run] batch_states=1 grad_accum=16 (effective=16)
-[run] seed=424242 max_steps=6 out_dir=D:\2026-AI4S\autoresearch\measurement\resume_test\A_uninterrupted
-data sources:
-  typed_decisions_train: 840 states, weight 1.0
-  typed_decisions_dev: 120 states, weight 0.0
-  typed_decisions_calibration: 120 states, weight 0.0
-  typed_decisions_shadow: 120 states, weight 0.0
-Loading weights:   0%|          | 0/310 [00:00<?, ?it/s]Loading weights:  90%|█████████ | 279/310 [00:00<00:00, 2774.89it/s]Loading weights: 100%|██████████| 310/310 [00:00<00:00, 2835.19it/s]
-[1mQwen3Model LOAD REPORT[0m from: E:/2026-AI4S/jev_repro/models/Qwen3-0.6B
-Key            | Status     |  | 
----------------+------------+--+-
-lm_head.weight | UNEXPECTED |  | 
-
-[3mNotes:
-- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
-E:\2026-AI4S\agent-jev\agentjev\model.py:68: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
-  self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
-W0929 17:53:03.037000 29940 torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels
-initialized weights from E:/2026-AI4S/agent-jev/checkpoints/autoresearch/final.safetensors (step None)
-[lora] r=16 alpha=32 targets=7 modules | backbone frozen 596.0M | trainable 12.46M (2.09%)
-[lora] gradient checkpointing ON on the backbone (activation memory, not optimizer state, is what fills this card)
-params: 608.5M | groups: bottom=0.0, middle=0.0, top=0.0, head=0.0
-[resume] none (mode=off); starting fresh
-step 1/6 loss=0.9983 lr=1.00e-04 tok/s=1734.2
-step 2/6 loss=1.0278 lr=9.05e-05 tok/s=1733.4
-step 3/6 loss=1.1064 lr=6.55e-05 tok/s=1800.3
-saved D:\2026-AI4S\autoresearch\measurement\resume_test\A_uninterrupted\checkpoint-3.pt
-step 4/6 loss=1.0892 lr=3.45e-05 tok/s=1488.9
-step 5/6 loss=0.9919 lr=9.55e-06 tok/s=1782.4
-step 6/6 loss=1.0505 lr=0.00e+00 tok/s=1748.0
-saved D:\2026-AI4S\autoresearch\measurement\resume_test\A_uninterrupted\checkpoint-6.pt
-[export] merged the adapter into the frozen base | tensors written 343 | backbone tensors 310 | lora_ keys remaining 0 (expected 0)
-saved D:\2026-AI4S\autoresearch\measurement\resume_test\A_uninterrupted\final.pt
-saved D:\2026-AI4S\autoresearch\measurement\resume_test\A_uninterrupted\final.safetensors
-done. steps=6 skipped_batches=0 dropped_questions=0 elapsed=275.2s

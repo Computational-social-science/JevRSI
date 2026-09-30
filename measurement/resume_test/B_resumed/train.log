@@ -1,18 +1,0 @@
-[run] batch_states=1 grad_accum=16 (effective=16)
-[run] seed=424242 max_steps=6 out_dir=D:\2026-AI4S\autoresearch\measurement\resume_test\B_resumed
-data sources:
-  typed_decisions_train: 840 states, weight 1.0
-  typed_decisions_dev: 120 states, weight 0.0
-  typed_decisions_calibration: 120 states, weight 0.0
-  typed_decisions_shadow: 120 states, weight 0.0
-Loading weights:   0%|          | 0/310 [00:00<?, ?it/s]Loading weights:  73%|███████▎  | 225/310 [00:00<00:00, 2239.27it/s]Loading weights: 100%|██████████| 310/310 [00:00<00:00, 2413.37it/s]
-[1mQwen3Model LOAD REPORT[0m from: E:/2026-AI4S/jev_repro/models/Qwen3-0.6B
-Key            | Status     |  | 
----------------+------------+--+-
-lm_head.weight | UNEXPECTED |  | 
-
-[3mNotes:
-- UNEXPECTED[3m	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.[0m
-E:\2026-AI4S\agent-jev\agentjev\model.py:68: UserWarning: enable_nested_tensor is True, but self.use_nested_tensor is False because encoder_layer.norm_first was True
-  self.encoder = nn.TransformerEncoder(layer, num_layers=num_layers)
-W0929 17:57:47.260000 53176 torch\utils\flop_counter.py:29] triton not found; flop counting will not work for triton kernels

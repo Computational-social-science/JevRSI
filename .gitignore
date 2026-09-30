@@ -1,22 +1,9 @@
-# Derived data and weights. Every number in every document is recomputed from a script, so these are
-# reproducible artifacts rather than sources. Excluded to keep the repository clonable and small.
-measurement/features/
-measurement/logit_bundles/
-measurement/floor_b_lora_runs/
-pipeline_runs/
-*.safetensors
-*.pt
-*.npz
 __pycache__/
 *.pyc
-# Binary sources: the original brief and cited papers are inputs, not results.
-*.docx
-*.pdf
-*.svg
-*.png
+.pytest_cache/
+.ipynb_checkpoints/
 
-# Credentials. .env.local was committed once (f351cc1) before this rule existed; the value must be
-# treated as disclosed and reissued. Never add an env file again.
+# Never commit a machine-specific path. config/paths.json holds the declared ones; an override
+# belongs in the environment, not in the tree, or the tree stops being cloneable elsewhere.
 .env
-.env.*
-!.env.example
+*.local.json
