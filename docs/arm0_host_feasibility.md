@@ -137,6 +137,60 @@ size all differ.
 Evaluation of the probe (1,000 MMLU-Pro + 400 typed-decisions, one pass, `repeat_eval: null`) ran
 longer than the training it followed, which is worth knowing before a 1,500-step arm is scheduled.
 
+### Evaluation OOMs where training does not
+
+The run finished with exit 0 and wrote every record, but the CUDA allocator reported repeated
+failures during evaluation:
+
+```
+memory allocation failed with OOM on device 0 while trying to allocate 134217728 bytes
+(free: 0, total: 12,878,086,144)
+```
+
+Training peaked at 96.7% and held; evaluation hit the wall. The cause is structural rather than
+incidental: **training runs with `grad_checkpointing`, evaluation does not**, and both evaluation
+paths are `@torch.no_grad`, so the difference is activation retention, not graph construction.
+`eval_batch_size: 32` is their DEFAULTS, set for an 80 GB card.
+
+This is the first adaptation this project has to make, and it is a one-key change with no edit to
+their code: `eval_batch_size` is a top-level spec key that `run_arm_lib` reads directly. It affects
+evaluation only -- it changes how many questions are scored per forward pass, not what is scored,
+not the metric, and not the training. It is still an adaptation, and it is recorded as one.
+
+`batch_size: 16` is their training number and is not being touched. If the real 1,500-step arm OOMs
+in training, the levers in order are `batch_size`, then a CPU-resident fp32 optimiser master, and
+each would need its own record.
+
+### What the probe scored, and what it does not mean
+
+`out/probe.jsonl` holds six records: three targets x two roles. The `control` role is
+`zero_shot_logprob` with `trainable: 0` -- the frozen base read out by its own logprobs, which is
+the control their own v1.0 record tabulates. The `candidate` role reports `trainable: 447,815,681`.
+
+| type | candidate (3 steps) | control (zero-shot) | majority base | delta |
+|---|---|---|---|---|
+| noul | 0.6117 | 0.5717 | 0.5067 | +0.0400 |
+| choice | 0.3333 | 0.3750 | 0.4867 | -0.0417 |
+| score | 0.2325 | 0.3125 | 0.3400 | -0.0800 |
+
+| pooled | candidate | control |
+|---|---|---|
+| aurc | 0.5620 | 0.4888 |
+| min_decision_score | -29.87 | -21.75 |
+| coverage_at_5 | 0.0000 | 0.0135 |
+
+**This is a 3-step run and its scores mean almost nothing about arm 0.** Three steps at batch 16 is
+48 questions of gradient. The numbers are consistent with a model that has not yet learned the task:
+`coverage_at_5` of exactly zero means it never puts 5% of its decisions in its own top confidence
+bin, and `min_decision_score` of -29.87 against a control's -21.75 says the same thing in the
+decision-metric form their evaluator uses. A pipeline that were broken would fail differently --
+`TypeError` at construction, as the previous attempt did.
+
+What the control column *is* worth: it is an independent measurement of the frozen Qwen3-0.6B on
+this benchmark, and it is the number any later arm has to beat before it can be said to have learned
+anything. Their v1.0 record tabulates the equivalent control at 0.3775 pooled for a 2B tower; ours is
+a different number on a different model and the two are not comparable.
+
 ---
 
 ## 5. One defect this project shipped and fixed
