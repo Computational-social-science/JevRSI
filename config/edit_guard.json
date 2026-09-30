@@ -1,0 +1,39 @@
+{
+  "_what_this_is": "EDITABLE / PROTECTED declaration for the guard rail in docs/EDIT_GUARD.md. Hashes are of the protected files as of 2026-09-30. The guard reads THIS file; it does not read docstrings, because a module that lies about its own protection is exactly the case the guard exists for.",
+  "_subject_repo": "agent-jev (JEVRSI_SUBJECT), a different volume, so paths are relative to it",
+  "_editable": [
+    "agentjev/__init__.py",
+    "agentjev/data.py",
+    "agentjev/losses.py",
+    "agentjev/model.py",
+    "agentjev/routing.py",
+    "agentjev/routing_data.py",
+    "agentjev/routing_runtime.py",
+    "agentjev/synth.py",
+    "agentjev/train.py",
+    "scripts/convert_prepared_to_agentjev.py"
+  ],
+  "_protected": {
+    "scripts/evaluate_split.py": "ec547eb1c07069cf456e95b32946958d33a12a8bdffd25d0b147e2bedd56cadd",
+    "scripts/autoresearch_agent.py": "2ba2836b46c2633bd54818bdd6530d4b611927e0c46bd910b68cf288f4f5ead9",
+    "typed_decisions/experiment.py": "ca54b8e112fba4c53993367b1a49158633b8ffb415c29e33b986fdd44fefc7fa"
+  },
+  "_protected_missing": [],
+  "_note_losses": "losses.py is EDITABLE on purpose. Training loss and reported metric may diverge; that divergence is how a claim gets falsified. The reported number is still computed by the protected metrics, from logits the protected evaluator produced.",
+  "_redeclaring": "Only to change the task, never to make an arm pass. Both hashes go in the commit.",
+  "_classification_rationale": {
+    "agentjev/model.py": "the model axis: how state and options are encoded and read out",
+    "agentjev/data.py": "the data axis: what gets collected, generated or deleted",
+    "agentjev/losses.py": "the training objective, as distinct from the scoring",
+    "agentjev/train.py": "objective, optimiser, schedule, calibration",
+    "agentjev/synth.py": "synthetic-question generation",
+    "agentjev/routing.py": "the serving and routing axis",
+    "agentjev/routing_data.py": "routing inputs",
+    "agentjev/routing_runtime.py": "routing execution",
+    "agentjev/__init__.py": "package surface",
+    "scripts/convert_prepared_to_agentjev.py": "how prepared questions enter the training set -- a data decision, so EDITABLE. Caught undeclared by this guard on its first run, 2026-09-30, which is the guard working rather than the guard being wrong.",
+    "scripts/evaluate_split.py": "PROTECTED: what is scored, how, and on which split",
+    "scripts/autoresearch_agent.py": "PROTECTED: the accept rule, the threshold, the reset semantics",
+    "typed_decisions/experiment.py": "PROTECTED: every metric definition, including ECE and Brier"
+  }
+}
