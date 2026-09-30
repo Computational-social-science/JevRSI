@@ -87,18 +87,23 @@ LOAD_BEARING = [
     ("sources", "synth", "the distillation corpus alone. Their v2.0 mixes in the benchmark's own "
                          "train split; that is their later release, not this one."),
     ("seed", 17, "their primary seed, fixed in advance."),
-    # An adaptation, not their value. An earlier version of this entry claimed 32 was observed to
-    # fail, which was wrong -- a control at steps 1 with freeze_base true completes at 32 with zero
-    # OOM, so the isolation experiment never reproduced the fault. The 3-step probe's OOM came from
-    # full-parameter training leaving 8.88 GiB of optimiser state resident at 96.7% and evaluation
-    # allocating on top of it. 8 is kept as a PRECAUTION, not as a measured necessity, and the
-    # reason recorded here says so: pinning it without saying why would let the next reader
-    # "restore" 32 against a reason that is not true.
-    ("eval_batch_size", 8, "OURS, a precaution. Their default 32 completes all three targets with "
-                           "zero OOM on this card; the 3-step probe OOMed because full-parameter "
-                           "training leaves the 8.88 GiB optimiser state resident at 96.7% and "
-                           "evaluation allocates on top of it. Evaluation-only: it changes how many "
-                           "questions are scored per forward pass and nothing else."),
+    # An adaptation, not their value, and the necessity is MEASURED -- twice, because the first
+    # attempt at measuring it destroyed the condition that causes the fault.
+    #
+    # freeze_base true  + eval 32  -> completes, zero OOM.  This looked like proof 32 was fine, and
+    #                                  it is the reason an earlier commit retracted the claim.
+    # freeze_base false + eval 32  -> torch.AcceleratorError: CUDA error: out of memory, 0 files.
+    #
+    # Both conditions are required; neither alone triggers it. The "control" removed the 8.88 GiB
+    # optimiser state, which is half the fault, so it could only return a false all-clear. The
+    # reason is recorded this precisely because a vague one would let the next reader "restore" 32
+    # against a story that does not hold.
+    ("eval_batch_size", 8, "OURS, necessary. Their default 32 OOMs on this card WHEN full-parameter "
+                           "training has left the 8.88 GiB optimiser state resident; the same 32 "
+                           "completes when the tower is frozen. The fault is the interaction, and "
+                           "this key is the only lever for it that does not touch the recipe. "
+                           "Evaluation-only: it changes how many questions are scored per forward "
+                           "pass and nothing else."),
 ]
 
 

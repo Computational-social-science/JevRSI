@@ -165,54 +165,63 @@ is a one-afternoon job rather than an overnight one.
 
 ---
 
-### Evaluation OOMs where training does not — and the first diagnosis was wrong
+### Evaluation OOMs where training does not — an interaction, and two wrong diagnoses
 
-The run finished with exit 0 and wrote every record, but the CUDA allocator reported repeated
-failures during evaluation:
+The 3-step probe finished with exit 0 and wrote every record, but the CUDA allocator had been
+failing during evaluation:
 
 ```
 memory allocation failed with OOM on device 0 while trying to allocate 134217728 bytes
 (free: 0, total: 12,878,086,144)
 ```
 
-The first explanation offered here was that evaluation lacks `grad_checkpointing` and that
-`eval_batch_size: 32` is too large for a 12 GB card. **That explanation was wrong, and it was used
-to change a value in the spec before being tested.**
+Getting to the real cause took two wrong answers, both of which had already been written into the
+spec before they were tested.
 
-A control at `steps: 1` with `freeze_base: true` completes all three targets at
-`eval_batch_size: 32` with **zero OOM**:
+**Wrong answer 1 — "evaluation lacks `grad_checkpointing`, and 32 is too big for 12 GB."** Plausible,
+untested, and acted on.
+
+**Wrong answer 2 — "32 is fine; the fault was the optimiser state alone."** This came from a control
+at `steps: 1` with `freeze_base: true`, which completed all three targets at 32 with zero OOM:
 
 ```
 saved release checkpoint -> ...\ck32 (309 tower tensors)
 [native/canonical] typed_decisions  minDS -31.10 (ctrl -21.75)  AURC 0.6026 (ctrl 0.4888)
 ```
 
-So 32 is not the fault. What the isolation experiment actually changed is the thing that matters:
-`freeze_base: true` removes the 8.88 GiB optimiser state, and with it gone, 32 fits. The original
-OOM was **full-parameter training leaving its optimiser state resident at 96.7% of the card while
-evaluation allocated on top of it** -- the two together, not `eval_batch_size` alone.
+That looked like a clean refutation, and the previous commit retracted the claim on its strength. The
+control was invalid: `freeze_base: true` removes the 8.88 GiB optimiser state, which is **half the
+fault**, so it could only ever return a false all-clear. An isolation that removes the phenomenon
+cannot report on the phenomenon.
 
-That is a different fault with a different fix, and the experiment designed to test necessity
-instead removed the very cause. The design error is worth naming: to test whether a parameter
-matters, the isolation must preserve the conditions that produced the fault.
+**The measurement that settles it** keeps the real arm's condition — `freeze_base: false`, so the
+optimiser state is resident — and varies only the key under test:
 
-`eval_batch_size: 8` is **kept**, and what it is now recorded as is a *precaution* rather than a
-measured necessity: evaluation will run against whatever the training step leaves resident on the
-real arm, and a fourfold cut in per-pass activation is cheap insurance for a setting that changes
-nothing about what is scored, what metric is used, or how the model was trained. A necessity test at
-`freeze_base: false` is the experiment that would settle it, and it is the one this project should
-have run first.
+| | `eval_batch_size: 32` | `eval_batch_size: 8` |
+|---|---|---|
+| **`freeze_base: true`** | completes, zero OOM | completes, zero OOM |
+| **`freeze_base: false`** | **`torch.AcceleratorError: CUDA error: out of memory`**, 0 files written | — |
+
+**The fault is the interaction.** Neither condition alone triggers it and both are required. In the
+failing cell, training had already completed and their own guard had already fired
+(`tower moved: max |dw| = 5.007e-06`); the process died afterwards, during evaluation, having
+written nothing.
+
+`eval_batch_size: 8` is therefore **necessary, and measured** — and the reason is recorded as the
+interaction rather than as either half of it, because a vaguer story would let the next reader
+"restore" 32 against an argument that does not hold. It changes how many questions are scored per
+forward pass and nothing else: not what is scored, not the metric, not the training, not the model.
+`batch_size: 16` is untouched, and pinned in the validator for the opposite reason — it is *their*
+number and nothing measured here justifies changing it.
 
 ### Two probes that did not measure what they intended
-
-Both are recorded because the failure mode is the reusable part.
 
 - `steps: 0` is not "skip training" in their code. It is a load check, and `fit()` rejects it
   without `init_from`: `ValueError: steps=0 is only meaningful with init_from (a load check)`. The
   work-around is `steps: 1`, not `steps: 0`.
-- The `freeze_base: true` isolation described above removed the cause of the OOM it was meant to
-  study, and so could only have returned a false "no problem". A negative result from an experiment
-  that removed the phenomenon is not evidence of its absence.
+- The `freeze_base: true` isolation removed the cause of the OOM it was meant to study. A negative
+  result from an experiment that removed the phenomenon is not evidence of its absence — and the
+  error survived a retraction, because the retraction was built on the same invalid control.
 
 ### What the probe scored, and what it does not mean
 
