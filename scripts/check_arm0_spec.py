@@ -87,6 +87,14 @@ LOAD_BEARING = [
     ("sources", "synth", "the distillation corpus alone. Their v2.0 mixes in the benchmark's own "
                          "train split; that is their later release, not this one."),
     ("seed", 17, "their primary seed, fixed in advance."),
+    # An adaptation, not their value -- but a REQUIRED one, and one that must not be silently
+    # reverted to their DEFAULTS of 32. Their own 3-step probe trained at 96.7% of this card and
+    # then OOMed repeatedly during evaluation, because training has grad_checkpointing and
+    # evaluation does not. Left unpinned, the next reader would set it back to 32 and rediscover
+    # the OOM after a full training run.
+    ("eval_batch_size", 8, "OURS, forced by measurement: evaluation OOMs at their default of 32 on a "
+                           "12 GB card while training holds at 96.7%. Evaluation-only; it changes "
+                           "how many questions are scored per forward pass and nothing else."),
 ]
 
 
@@ -235,6 +243,12 @@ def self_test(spec: dict) -> int:
         ("a pseudo-comment inside fit_extra",
          {**spec, "fit_extra": {**(spec.get("fit_extra") or {}), "_why": "looks safe"}},
          "NOT-A-COMMENT"),
+        # eval_batch_size is an ADAPTATION. The failure it prevents is specific: reverted to their
+        # DEFAULTS of 32, a 1,500-step arm would train for tens of hours and then OOM in evaluation.
+        ("eval_batch_size reverted to their default of 32",
+         {**spec, "eval_batch_size": 32}, "LOAD-BEARING"),
+        ("batch_size, their training number, changed",
+         {**spec, "batch_size": 8}, "LOAD-BEARING"),
     ]
     ok = True
     for name, bad, expect in cases:

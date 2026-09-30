@@ -161,6 +161,23 @@ not the metric, and not the training. It is still an adaptation, and it is recor
 in training, the levers in order are `batch_size`, then a CPU-resident fp32 optimiser master, and
 each would need its own record.
 
+**Measured, not assumed.** A control run at `steps: 1` with `freeze_base: true` -- which drops the
+training-side footprint to nothing and leaves evaluation as the only consumer -- completes all three
+targets at `eval_batch_size: 8` with no OOM, and writes every record. That is what makes 8 the
+spec's value rather than a guess: 8 is the setting that was observed to work, and 32 is the setting
+that was observed to fail.
+
+A note on a probe that did not measure what it intended: `steps: 0` is not "skip training" in their
+code, it is a load check, and `fit()` rejects it without `init_from` --
+`ValueError: steps=0 is only meaningful with init_from (a load check)`. The isolation above uses
+`steps: 1` with the tower frozen instead, which reaches the same separation through supported
+values.
+
+`eval_batch_size: 8` is pinned in the spec's load-bearing list, so a later reader who restores their
+DEFAULTS of 32 is caught by `scripts/check_arm0_spec.py` rather than by an OOM after 30 hours of
+training. `batch_size` is pinned to 16 in the same list, for the opposite reason: it is *their*
+number and nothing on this host justifies changing it.
+
 ### What the probe scored, and what it does not mean
 
 `out/probe.jsonl` holds six records: three targets x two roles. The `control` role is

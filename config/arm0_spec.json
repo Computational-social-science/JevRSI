@@ -38,6 +38,9 @@
   "keep_last_k": 3,
   "prior_kl": 0.0,
 
+  "eval_batch_size": 8,
+  "_eval_batch_size_is_ours": "8, against their DEFAULTS of 32. This is the FIRST adaptation this project makes to their recipe, and it is forced: their own 3-step probe trained to 96.7% of the card without incident and then hit repeated CUDA OOM during evaluation, because training runs with grad_checkpointing and evaluation does not. It changes how many questions are scored per forward pass and nothing else -- not what is scored, not the metric, not the training, not the model. 8 rather than 16 because the margin at 32 was zero and 16 was not measured; 8 is a fourfold reduction chosen for headroom, and a measurement rather than a bisection would settle it.",
+
   "arch_extra": {
     "xattn_heads": 4
   },
