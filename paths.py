@@ -1,0 +1,95 @@
+"""
+paths.py -- the single place a machine-specific location is written down.
+
+WHY THIS EXISTS
+    The subject repository and the base weights are on a different volume from this repository. A
+    path like E:/2026-AI4S/agent-jev cannot be written relative to the project root and cannot be
+    committed without making the tree uncloneable on another machine. So each location is declared
+    once in config/paths.json, and an environment variable may override it.
+
+WHY A LOUD FAILURE INSTEAD OF A DEFAULT
+    A default that is wrong on this host is worse than no default: it produces a plausible run
+    against the wrong data, and the error surfaces hours later as a number that does not reproduce.
+    An unset override raises with the variable name in the message. Every path returned here is one
+    that exists.
+
+USAGE
+    from paths import subject, backbone, require
+    SUBJECT = require(subject(), "the subject repository")
+"""
+from __future__ import annotations
+
+import json
+import os
+import pathlib
+
+CONFIG = pathlib.Path(__file__).resolve().parent / "config" / "paths.json"
+
+# key in config/paths.json -> environment variable that overrides it
+ENV_FOR = {
+    "subject": "JEVRSI_SUBJECT",
+    "backbone": "JEVRSI_BACKBONE",
+    "synth_corpus": "JEVRSI_SYNTH_CORPUS",
+    "reference_repo": "JEVRSI_REFERENCE_REPO",
+}
+
+
+def _config() -> dict:
+    if not CONFIG.is_file():
+        raise SystemExit(f"[fatal] {CONFIG.name} is missing. Every machine-specific location is "
+                         f"declared there; nothing falls back to a built-in default.")
+    return json.loads(CONFIG.read_text(encoding="utf-8"))
+
+
+def subject() -> pathlib.Path:
+    return _resolve("subject")
+
+
+def backbone() -> pathlib.Path:
+    return _resolve("backbone")
+
+
+def synth_corpus() -> pathlib.Path:
+    return _resolve("synth_corpus")
+
+
+def reference_repo() -> pathlib.Path:
+    return _resolve("reference_repo")
+
+
+def _resolve(key: str) -> pathlib.Path:
+    env = ENV_FOR.get(key, "")
+    raw = os.environ.get(env) if env else None
+    if raw:
+        return pathlib.Path(raw)
+    val = _config().get(key)
+    if not val:
+        raise SystemExit(f"[fatal] no path for {key!r} in {CONFIG.name} and ${env} is unset.")
+    return pathlib.Path(val)
+
+
+def require(path, what: str) -> pathlib.Path:
+    """Return an existing path, or explain precisely what is missing.
+
+    The message names the environment variable too, because on this host locations are usually set
+    from the shell rather than from the config, and a failure that mentions only the config sends
+    you to edit a file that was never the problem. The variable is found by asking each declared
+    key whether it currently resolves to THIS path -- config value or environment value alike --
+    rather than by inspecting the call site, which would only ever know about one key.
+    """
+    p = pathlib.Path(path)
+    if p.exists():
+        return p
+    cfg = _config()
+    names = []
+    for key, env in ENV_FOR.items():
+        candidate = os.environ.get(env) or cfg.get(key)
+        if candidate and pathlib.Path(candidate) == p:
+            names.append(f"${env}" if os.environ.get(env) else f"{CONFIG.name}:{key}")
+    hint = f" -- set {' or '.join(names)}" if names else ""
+    raise SystemExit(f"[fatal] {what} not found at {p}{hint}")
+
+
+def splits_dir() -> pathlib.Path:
+    """The subject repository's question splits, including any converted foreign corpus."""
+    return require(subject(), "the subject repository") / "data" / "agentjev_splits"

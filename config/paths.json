@@ -1,0 +1,14 @@
+{
+  "_what_this_is": "Every machine-specific location, declared once. Code reads paths through paths.py and never hardcodes one.",
+  "_why_env_overrides": "The subject repository and the base weights are on a different volume from this repository, so their paths cannot be relative and must be supplied. An unset override fails loudly rather than falling back to a default that is wrong on this host.",
+  "subject": "E:/2026-AI4S/agent-jev",
+  "backbone": "E:/2026-AI4S/jev_repro/models/Qwen3-0.6B",
+  "synth_corpus": "E:/2026-AI4S/data_synth/typed-decisions-synth",
+  "reference_repo": "E:/2026-AI4S/RSI-Jev",
+  "_env_vars": {
+    "JEVRSI_SUBJECT": "overrides subject",
+    "JEVRSI_BACKBONE": "overrides backbone",
+    "JEVRSI_SYNTH_CORPUS": "overrides synth_corpus",
+    "JEVRSI_REFERENCE_REPO": "overrides reference_repo"
+  }
+}
