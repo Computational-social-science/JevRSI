@@ -118,31 +118,50 @@ What came back, read from `ckpt/meta.json`:
 **A 1.79 GB checkpoint on disk is the proof that full-parameter training happened.** A frozen-tower
 arm would have written a ~29 MB head and nothing else.
 
-### Step time — measured, and the first estimate was wrong
+### Step time — three measurements, and two corrections
 
-`train_seconds: 467` for 3 steps cannot be turned into a per-step figure, and the first attempt to
-bound it produced numbers that were off by more than an order of magnitude. It attributed all 467 s
-to the 3 steps and reported 156 s/step, giving 32-65 h for a 1,500-step arm.
+The path to a real number went through two wrong ones, both recorded because the errors are the
+reusable part.
 
-A later control run printed the line their own trainer emits:
+**First attempt, wrong by an order of magnitude.** `train_seconds: 467` over 3 steps was divided by
+3, giving 156 s/step and a projected 32-65 h. The 467 s is dominated by costs that do not scale with
+steps -- corpus encoding, candidate vectors, writing 1.79 GB -- and dividing a total by a small
+sample charges all of it to the training. A total divided by a small sample is a bound, not a
+measurement.
+
+**Second attempt, wrong in the other direction.** A control printed the line their trainer emits:
 
 ```
 trained 6277 cases in 1s  loss [1.2714]
 ```
 
-**One step takes about one second.** The 467 s is dominated by costs that do not scale with steps --
-encoding the corpus, materialising candidate vectors, writing 1.79 GB -- and dividing it by 3
-charged every one of those to the training. At ~1 s/step a 1,500-step arm is on the order of 25
-minutes, not two and a half days.
+and 1,500 steps was reported as about 25 minutes. That run had `freeze_base: true`. The real arm
+does not: `freeze_base: false` is what reproduces v1.0, and their own control table records that
+every frozen variant of theirs stalled below the majority baseline.
 
-That single sample is not enough to schedule against, and a 30-step probe is running to settle it.
-The lesson is the one the correction itself demonstrates: **a total divided by a small sample is a
-bound, not a measurement**, and the first honest statement should have been "the one-off costs
-dominate and I cannot separate them" rather than two numbers derived from the same wrong division.
+**The measurement that settles it**, at `freeze_base: false` and therefore the real arm's condition:
 
-Their 1,500 steps at 2B took about 13 minutes on an H100 80 GB. Ours at 0.6B on a 4070 landing near
-25 minutes is not a meaningful ratio -- different hardware, different precision stack, different
-model size.
+```
+trained 6277 cases in 23s  loss [1.2698]
+tower moved: max |dw| over probe tensors = 5.007e-06
+```
+
+| condition | measured | 1,500 steps |
+|---|---|---|
+| `freeze_base: true` (head only) | 1 s/step | 0.4 h |
+| **`freeze_base: false` (the real arm)** | **23 s/step** | **9.6 h** |
+
+The 22 s/step difference is the 8.88 GiB optimiser state: every step traverses it in the backward
+pass and writes back to it. It is also, incidentally, the reason the evaluation OOM in the 3-step
+probe happened when it did.
+
+`tower moved: max |dw| = 5.007e-06` is their own guard reporting that the tower weights actually
+changed. That is the check that makes a full-parameter claim mean anything, and it fires.
+
+Their 1,500 steps at 2B took about 13 minutes on an H100 80 GB. Ours at 0.6B on a 4070 is about 9.6
+hours, roughly 44x longer. The ratio carries no scientific meaning -- different hardware, different
+precision stack, different model size -- but it is the honest cost of this arm on this card, and it
+is a one-afternoon job rather than an overnight one.
 
 ---
 
