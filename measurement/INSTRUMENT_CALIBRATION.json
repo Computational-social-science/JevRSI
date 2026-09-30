@@ -4,7 +4,7 @@
   "measured_on": {
     "benchmark": "LocalLLaMA/typed-decisions",
     "splits": "train 960 / dev 120 / calibration 120 / test 400 (2000 questions), verified case-by-case against protocol.json",
-    "instrumented_arm": "laya-multilingual 322M, full-parameter, 5 pre-registered seeds"
+    "instrumented_arm": "a RETIRED 322M full-parameter arm, 5 pre-registered seeds"
   },
   "floor_B_run_to_run": {
     "value_pp": 0.4,
@@ -20,8 +20,8 @@
     ],
     "what_it_is": "SD of the final score across 5 seeds that differed ONLY by seed. This is the reproducibility floor of a single run of this pipeline on this host.",
     "caveat": "df = 4. Small-sample: report the df beside the value, never the value alone.",
-    "source": "measurement/floor_b_laya_runs/floor_b_laya.json",
-    "_VOID": "MEASURED ON A RETIRED SUBSTRATE (laya-multilingual 322M). Not a property of the live seed. Do not use in any threshold.",
+    "source": "<destroyed 2026-09-30: the referenced artefact no longer exists>",
+    "_VOID": "MEASURED ON A RETIRED 322M ARM. Not a property of the live seed. Do not use in any threshold.",
     "_live_seed_measurement": "measurement/floor_b_lora_runs/ -- INCOMPLETE, 1 of 5 seeds, stopped at 325/600 steps. No metrics.json."
   },
   "floor_A_measurement_sampling": {
@@ -91,15 +91,15 @@
   ],
   "_REVOKED_2026-09-30": {
     "what": "tau_dev (and every threshold derived from floor_B_run_to_run) is NOT ARMED.",
-    "why": "floor_B_run_to_run.value_pp = 0.40 was measured on laya-multilingual 322M, full-parameter, 5 seeds. The live seed is AgentJev-0.6B (Qwen3-0.6B backbone, 596M, QLoRA). Different model, different size, different training path. The replicate accuracies behind it sit at ~0.53 while AgentJev's dev baseline is 0.7955, so the two arms are not on the same scale even before the path argument.",
+    "why": "floor_B_run_to_run.value_pp = 0.40 was measured on a RETIRED 322M full-parameter arm, full-parameter, 5 seeds. The live seed is AgentJev-0.6B (Qwen3-0.6B backbone, 596M, QLoRA). Different model, different size, different training path. The replicate accuracies behind it sit at ~0.53 while AgentJev's dev baseline is 0.7955, so the two arms are not on the same scale even before the path argument.",
     "the_preregistration_already_said_so": "docs/prereg_floor_b_lora_2026-09-29.md L14-18: 'Re-derive Floor B on its OWN seed ... Do not inherit it silently. The accept rule cannot be armed until this seed's own Floor B exists.' Arming it anyway is a Rule 1 violation.",
-    "also_broken": "floor_B_run_to_run.source points at measurement/floor_b_laya_runs/floor_b_laya.json, which no longer exists in the active tree or the archive. The provenance chain is broken independently of the substrate mismatch.",
+    "also_broken": "floor_B_run_to_run.source pointed at an artefact under the retired arm's run directory, which no longer exists in the live tree or the archive. The provenance chain was already broken independently of the substrate mismatch.",
     "what_remains_valid": "floor_A_measurement_sampling (1.0668 pp) is a property of the BENCHMARK -- case-level cluster bootstrap over the 400 test cases -- and is independent of which model is trained. Floor A is inheritable; Floor B is not.",
     "how_to_un_revoke": "Replace floor_B_run_to_run with a measurement from THIS seed (measurement/floor_b_lora_runs/, 5 seeds differing only by seed, reporting df beside the SD), recompute the threshold, and delete this key."
   },
   "_retired_object": {
-    "name": "laya-multilingual 322M substrate",
+    "name": "a retired 322M full-parameter arm",
     "status": "RETIRED 2026-09-30. Do not work on this object.",
-    "appears_in_this_file_because": "the revoked Floor B below was measured on it, and that is the reason the threshold is revoked rather than merely flagged. Naming it is how a future reader can tell WHY tau must not be armed; deleting the name would leave an unexplained revocation."
+    "appears_in_this_file_because": "the revoked run-to-run floor below was measured on it, and that is the reason the threshold is revoked rather than merely flagged. Naming the arm's status is how a future reader can tell WHY tau must not be armed."
   }
 }

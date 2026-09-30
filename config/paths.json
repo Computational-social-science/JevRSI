@@ -8,5 +8,6 @@
   "backbone": "../jev_repro/models/Qwen3-0.6B",
   "backbone_env": "JEVRSI_BACKBONE",
   "harness": "../nanochat-autoresearch",
-  "harness_env": "JEVRSI_HARNESS"
+  "harness_env": "JEVRSI_HARNESS",
+  "_harness_note": "The borrowed loop instrument: a Windows-local fork of karpathy/autoresearch, checked out under its upstream directory name. The DIRECTORY name is retained deliberately: renaming it in this file to something neutral would point at a path that does not exist, and a config that lies about where a thing lives is worse than one that names an old word. The vocabulary ban applies to PROSE, not to a filesystem path someone chose years ago. harness() has no callers in the live tree; the controller we drive lives in the SUBJECT repo."
 }

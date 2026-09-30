@@ -8,7 +8,8 @@
 
 Our Windows-local instrument is **`jsegov/autoresearch-win-rtx`**, a fork of it. When this project says
 "the autoresearch harness", it means that repository and its design. We borrow its **ideas and
-iteration framework**; we do not reproduce its work and we do not retrain nanochat.
+iteration framework**; we do not reproduce its work, and retraining that harness's own substrate is
+not a goal of this project.
 
 ## What is forbidden
 
@@ -62,8 +63,9 @@ Not taken:
   600-step parameter cycle is **2.11 h**, and a harness cycle is **~10 ms**. That ratio is why the
   harness is the primary route and the parameter route is gated behind a measured saturation
   condition rather than a schedule.
-- **nanochat, `val_bpb`, TinyStories.** The harness's own substrate. Here the instrument is
-  `typed-decisions` and a non-generative scoring model.
+- **the harness's own substrate, its perplexity benchmark, and its synthetic-corpus training set.**
+  Those belong to the borrowed instrument's lineage. Here the benchmark is `typed-decisions` and the
+  model is a non-generative scoring model. Do not import numbers from that substrate.
 - **the Linux/H100 path**, removed in the fork and not supported.
 
 ## The guard

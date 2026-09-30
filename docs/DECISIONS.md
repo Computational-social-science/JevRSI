@@ -93,7 +93,7 @@ carried over unchanged.
   "status": "one real contamination found and corrected; the provenance chain was upgraded",
   "finding": {
     "what": "The first manuscript draft cited Floor B = 0.40 pp as this objective's Floor B, and on that basis presented epsilon(dev) = 12.38 pp as a settled threshold",
-    "truth": "The 0.40 pp was measured on the laya-multilingual 322M full-parameter arm, which is a different training path. The calibration file itself says 'Do not inherit it silently'. The 12.38 pp did inherit that borrowed Floor B (see DAY1_BASELINE_2026-09-29.md lines 67 and 72-73), and the same document also records 'Floor B on the QLoRA seed = not measured'",
+    "truth": "The 0.40 pp was measured on a RETIRED 322M full-parameter arm -- a different model on a different training path, and one the pre-registration explicitly forbids inheriting from ('Do not inherit it silently'). The 12.38 pp did inherit that borrowed Floor B (see DAY1_BASELINE_2026-09-29.md lines 67 and 72-73), and the same document also records 'Floor B on the QLoRA seed = not measured'",
     "direction_of_error": "optimistic. Floor B enters as a squared term, so a borrowed value that is too small makes the true threshold LARGER. 12.38 pp is therefore a lower bound",
     "how_found": "measurement/audit_manuscript_numbers.py raised an error when it compared 12.38 against the calibration file's 4.95, which exposed two epsilons coming from two different objectives"
   },

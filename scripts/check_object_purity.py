@@ -298,6 +298,26 @@ LIVE_OBJECT = "RTX4070_SelfEvolving_Jev_Research_Proposal.md"
 
 # Two files were REPLACED rather than moved during that mistaken cleanup, then restored. Listed so the
 # archive-presence rule does not demand an archive copy for a file that is live again.
+# Documents the operator ordered DESTROYED on 2026-09-30 rather than archived, on the grounds that a
+# polluting document must not exist at all. sha256 copies are held OUTSIDE the repository, at
+# a sibling directory outside the repository, deliberately: keeping them in-tree would defeat the order,
+# and the point of a deletion here is that a later session cannot read them by accident.
+#
+# This is the third terminal state for a retired document -- live, archived, deleted. CHECK F
+# previously accepted only the first two, so complying with the order would have made the guard fail
+# permanently. A guard that cannot be satisfied is a guard that gets disabled.
+DELETED_DOCS_2026_09_30 = {
+    "docs/JevRSI_program.md",
+    "docs/JEVO_program.md",
+    "docs/JevRSI_retraining_readiness.md",
+    "docs/EVIDENCE_prior_art_and_feasibility.md",
+    "docs/RESEARCH_GOAL_v2_2026-09-29.md",
+    "CURRENT_OBJECT.v2_draft.md",
+    "manuscript.html",
+    "docs/audit_RTX4070_proposal_2026-09-29.md",
+    "docs/incident_2026-09-25_tree_loss.md",
+}
+
 REPLACED_IN_PLACE = {
     "CURRENT_OBJECT.md",
     "docs/DOCUMENT_MAP.md",
@@ -317,12 +337,24 @@ def check_f() -> list[str]:
         if p.exists():
             out.append(f"  [F] retired document back in the live tree: {rel}\n"
                        f"      -> it carries the retired objective; the live objective is {LIVE_OBJECT}")
-        # and it must be in the archive, not simply gone -- unless it was replaced in place
+        # It must be in the archive OR recorded as deliberately destroyed. The original rule was
+        # "neither live nor archived is indistinguishable from a deletion" -- true, and the operator
+        # then ordered that polluting documents must NOT EXIST. Those two requirements are only
+        # compatible if DELETED is a third, recorded terminal state, so it is one now: a document
+        # listed in DELETED_DOCS_2026_09_30 is expected to be absent, and its absence is the correct
+        # outcome rather than a missing record. Anything neither live, nor archived, nor listed here
+        # is still a genuine gap.
         archived = (ROOT / CLEANUP_ARCHIVE / Path(rel).name).exists() or \
                    (ROOT / CLEANUP_ARCHIVE / "SSOT" / Path(rel).name).exists()
+        if rel in DELETED_DOCS_2026_09_30:
+            # Recorded as destroyed. Re-appearance is the failure this must still catch.
+            if archived:
+                out.append(f"  [F] {rel} was recorded as DELETED on 2026-09-30 but an archived copy "
+                           f"exists -- the retirement is inconsistent, pick one")
+            continue
         if not archived and rel not in REPLACED_IN_PLACE:
-            out.append(f"  [F] {rel} is neither live nor archived -- a retirement that lost its "
-                       f"record is indistinguishable from a deletion")
+            out.append(f"  [F] {rel} is neither live, archived, nor recorded as deleted -- a "
+                       f"retirement that lost its record is indistinguishable from an accident")
     if not (ROOT / CLEANUP_MANIFEST).exists():
         out.append(f"  [F] cleanup manifest missing: {CLEANUP_MANIFEST}")
 

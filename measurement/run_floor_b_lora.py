@@ -32,7 +32,7 @@ Run: python measurement/run_floor_b_lora.py --arm bf16
 """
 
 # RETIRED OBJECT DECLARATION
-# The laya-multilingual 322M substrate is a retired research object (2026-09-30). It is named below
+# A retired 322M full-parameter arm is a retired research object (2026-09-30). It is named below
 # only in a comment recording a MODULE-NOT-FOUND crash caused by this agent's own site-packages
 # rotation. Do not work on this object.
 from __future__ import annotations

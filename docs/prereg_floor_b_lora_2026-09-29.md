@@ -8,8 +8,8 @@ is an outcome of this experiment.
 ## Why this experiment exists
 
 `ε(dev) = 12.38 pp` currently circulating in this project is **provisional and optimistic**. It was derived
-with a Floor B of 0.40 pp that was measured on a *different training path* — laya-multilingual 322M,
-full-parameter. `measurement/INSTRUMENT_CALIBRATION.json` says in its own words:
+with a Floor B of 0.40 pp that was measured on a *different training path* — a retired 322M
+full-parameter arm. `measurement/INSTRUMENT_CALIBRATION.json` says in its own words:
 
 > Re-derive Floor B on its OWN seed, because 0.40 pp is a property of this pipeline's training path.
 > Do not inherit it silently.
@@ -101,7 +101,7 @@ This experiment can fail, and each way it can fail is written down in advance:
 - Day-1 seed baseline, dev, frozen evaluator: accuracy 0.8150, chance-corrected 0.7326, soft CE 0.8243,
   Brier 0.0476, ECE 0.1481, score MAE 0.1849. (Source: `measurement/day1_baseline_metrics.json`,
   recomputed from saved logits.)
-- Borrowed Floor B, *not* this seed's: 0.40 pp (laya-multilingual 322M, full-parameter, df = 4).
+- Borrowed Floor B, *not* this seed's: 0.40 pp (a retired 322M full-parameter arm, df = 4).
 - Hardware: full-parameter 13.26 GiB (does not fit); BF16 + LoRA r16 peak 7.80 GiB (fits, 4.20 GiB spare).
 - `bitsandbytes`: not installed at the time of writing. The 4-bit arm is contingent on that changing.
 

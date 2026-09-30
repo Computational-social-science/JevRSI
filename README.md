@@ -1,100 +1,78 @@
 # JevRSI
 
-> **The research objective is [`RTX4070_SelfEvolving_Jev_Research_Proposal.md`](RTX4070_SelfEvolving_Jev_Research_Proposal.md).**
-> **The single source of truth is [`CURRENT_OBJECT.md`](CURRENT_OBJECT.md).** If any file disagrees with
-> those two, those two win.
+> **The objective is [`RTX4070_SelfEvolving_Jev_Research_Proposal.md`](RTX4070_SelfEvolving_Jev_Research_Proposal.md).**
+> Read [`CURRENT_OBJECT.md`](CURRENT_OBJECT.md) first — it is the SSOT and it outranks this file.
 
-## The objective, in one paragraph
+## The controller is the ecosystem's, not ours
 
-A 24/7 self-evolving optimisation loop for a Jev-style decision model, under two hard constraints: **one
-RTX 4070 (12 GB, 150 W cap)** and **zero external API**. Seed: `AgentJev-0.6B` (Qwen3-0.6B backbone,
-permutation-equivariant scoring head) + QLoRA rank-16 + AnyJev L1 calibration. A deterministic
-multi-fidelity controller (Select → Mutate → Train → Evaluate → Archive → Persist) searches for a
-configuration that beats the L1-calibrated seed on a frozen held-out set, with every attempt logged and
-every failure shipped.
+Experiments run through **`agent-jev/scripts/autoresearch_agent.py`** — the upstream 24/7 loop, which
+already has a pre-registered τ, a dev/shadow two-signal scheme, crash classification with a circuit
+breaker, and trajectory persistence for rejected attempts.
 
-## What is already built, and what is not
+**We drive it. We do not reimplement it.** A second orchestrator is how two copies drift, and the
+drift is invisible until a number disagrees. Our own `pipeline/` and `loop/` were retired on
+2026-09-30 for exactly that reason. Our layer is `adaptation/` — gates and adapters, no controller.
 
-| | status |
-|---|---|
-| **The instrument** — two measured noise floors, a pre-registered threshold, and a true-null audit of the accept rule | ✅ built, and calibrated on this benchmark |
-| **The objective** — the six-week single-GPU plan | ⬜ not started |
-| **The loop** — controller, MAP-Elites archive, JSONL state machine | ⬜ not built |
-| **Checkpoints for the seed** | ⬜ none; the 11 deleted checkpoints belonged to a superseded substrate |
+## BLOCKED — the accept threshold is revoked
 
-## The one thing to settle before running anything
+`INSTRUMENT_CALIBRATION.json` carried a run-to-run floor of **0.40 pp measured on a retired 322M
+full-parameter arm**, not on this seed (596M, QLoRA; dev baseline 0.7955 against that arm's 0.53).
+The pre-registration explicitly forbade inheriting it. It was inherited, and `tau_dev = 4.949 pp`
+was armed on top of it. The measurement-sampling floor (**1.0668 pp**) is a property of the
+*benchmark* and remains valid.
 
-The proposal's success criterion is *"the lower bound of a bootstrap 95% CI (elite − L1 seed) on V is
-strictly positive."* Measured on this benchmark, **that rule fires on 5 of 10 pure-noise comparisons**
-(`measurement/accept_rule_audit.py` — five replicates differing only by seed give ten pairs, every one a
-trial under a true null). A rule that accepts half of pure noise cannot support a success claim.
-
-The replacement is already calibrated and in `measurement/INSTRUMENT_CALIBRATION.json`:
-
-| quantity | value | scope |
-|---|---|---|
-| **Floor A** — measurement sampling | SE **1.07 pp**, design effect 1.384 | a property of the 400-case split; **transfers to any model** |
-| **Floor B** — run-to-run | SD **0.40 pp**, df = 4 | a property of *this training path*; **re-derive for the QLoRA seed** |
-| **τ (test)** | **3.11 pp** | decisions on the frozen 400-case split |
-| **τ (dev)** | **4.95 pp** | selection on the 120-case split, Bonferroni over 1000 decisions |
-| naive rule | 5/10 fire | **replace with Δ > τ**, which fires 0/10 |
-
-This is not an objection to the objective. It is the instrument the objective needs in order to be
-decidable — and it is already paid for.
+`adaptation/gate_tau.py` **refuses** while `_REVOKED_2026-09-30` is present. No keep/revert decision
+may be made until it is cleared — by re-measuring the floor on this seed, or by re-pre-registering on
+the sampling floor alone.
 
 ## Layout
 
 ```
 autoresearch/
-├── CURRENT_OBJECT.md                          SSOT: the object, the retirements, the drift checks
-├── RTX4070_SelfEvolving_Jev_Research_Proposal.md   THE OBJECTIVE
-├── measurement/
-│   ├── INSTRUMENT_CALIBRATION.json            the two floors, τ, the accept-rule audit — self-contained
-│   ├── tau_calibration.py                     derive τ for any split, with multiplicity control
-│   ├── floor_a_cluster_bootstrap.py           cluster bootstrap (questions nest inside cases)
-│   ├── accept_rule_audit.py                   empirical false-accept rate under a true null
-│   ├── provenance.py                          zlib fingerprint; hashlib segfaults with torch+pyarrow
-│   ├── audit_pipeline.py                      structural audit; runs as a preflight gate
-│   └── test_*.py, verify_split_against_protocol.py, eval_laya_split.py
-├── figures/                                   generators + programmatic layout audit (fig_qc.py)
-├── scripts/check_object_purity.py             asserts ABSENCE of retired objects
-├── scripts/check_citation_provenance.py       every external number carries a resolvable source
-└── archive/                                   everything superseded, with hash manifests
+├── CURRENT_OBJECT.md                                 SSOT: the object, the retirements, the gates
+├── RTX4070_SelfEvolving_Jev_Research_Proposal.md     THE OBJECTIVE
+├── adaptation/                                       gates and adapters, no controller
+│   ├── _ecosystem.py                                 loads pure helpers from agent-jev by path
+│   └── gate_tau.py                                   refuses to arm a revoked threshold
+├── config/paths.json                                 every machine-specific location, declared once
+├── harness/                                          reference implementation of the calibration stages
+├── lean/JevRSI/AcceptRule.lean                       Lean 4 formalisation of the accept rule
+├── measurement/                                      floors, tau, feature cache, calibration
+├── scripts/                                          the five guards
+├── docs/                                             decisions, pre-registration, rules, terminology
+└── archive/                                          retired and superseded material, with manifests
 ```
 
-## Gates — all must pass before any claim
+## Gates — all six must pass before a cycle spends GPU
 
 ```bash
-python scripts/check_object_purity.py
-python measurement/audit_pipeline.py
-python measurement/audit_manuscript_numbers.py
-python measurement/test_meaning_boundary.py
-python measurement/test_release_weights.py
-python measurement/verify_split_against_protocol.py
-python scripts/check_citation_provenance.py
-python figures/fig_qc.py
+python scripts/check_object_purity.py     # 15 retired objects stay absent
+python scripts/check_language.py          # English is the language of every result
+python scripts/check_terminology.py       # the lineage stays correctly attributed
+python scripts/check_relative_paths.py    # no machine paths, AND derived roots land correctly
+python scripts/check_split_disjoint.py    # fit / filter / decision sets are three different things
+python adaptation/gate_tau.py             # refuses to arm a revoked or unregistered threshold
 ```
+
+Each prints its exemptions in force on every run, so an exemption list cannot grow unnoticed.
 
 ## Rules
 
-1. **No unverified numbers.** Every external figure carries a resolvable source (HF model-id + file path,
-   arXiv id, or GitHub repo + path + commit).
-2. **The frozen split is opened once.** Selection on dev/medium; the held-out set at pre-registered checkpoints.
-3. **Negative results are first-class**, with their mechanism and their power.
-4. **Retire by moving, not by annotating** — and always leave an SSOT behind.
-5. **State the df beside every SD.** A pilot once overstated the run-to-run floor by 3.53× because it was
-   measured at df = 1.
-6. **The agent does not retire the owner's objective.** An audit may report that a cited figure has no
-   source; whether a stated objective is still pursued is the owner's decision. (Learned 2026-09-29, the
-   hard way — see `archive/superseded_2026-09-29_object_cleanup/MANIFEST.json`.)
+The full set is in [`docs/PROJECT_RULES.md`](docs/PROJECT_RULES.md) and is binding. Four worth
+restating:
+
+1. **A measurement is not a claim until its noise is measured.** A borrowed floor may plan
+   *provisionally* if labelled at the point of use; it may never appear in an accept threshold or a
+   comparison table un-measured.
+2. **State the df beside every SD.** A pilot once overstated the run-to-run floor by 3.53x because it
+   was measured at df = 1.
+3. **Destructive operations are not delegated.** Files are moved, never deleted, when reclassifying
+   work -- and any agent given a reclassification task gets an explicit target and a verification
+   step.
+4. **The agent does not retire the owner's objective.** An audit may report that a cited figure has
+   no source; whether a stated objective is still pursued is the owner's decision.
 
 ## Retired
 
-`prompt-multiplier` / HPFE / OASP / κ · Gate B / `val_bpb` / recursive self-training collapse ·
-Zarankiewicz topic selection · MentalBench · **the laya-multilingual substrate as the optimisation
-target** (its 11 checkpoints and manuscript are archived; its measured floors survive in
-`INSTRUMENT_CALIBRATION.json`) · **0.704 / 0.735 as attainable-accuracy ceilings** (public measurements on
-the same split reach 0.768, 0.786, 0.799).
-
-`nanochat` / `val_bpb` remain **retired as an object but live as the instrument** — `autoresearch-win-rtx`
-is the sanctioned loop substrate. Borrow the framework; do not import its numbers.
+Fifteen research objects are retired and asserted absent by `check_object_purity.py`. They are
+listed with reasons in `CURRENT_OBJECT.md`. Do not work on, extend, or cite any of them as live.

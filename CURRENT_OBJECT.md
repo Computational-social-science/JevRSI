@@ -3,8 +3,14 @@
 > **The objective is [`RTX4070_SelfEvolving_Jev_Research_Proposal.md`](RTX4070_SelfEvolving_Jev_Research_Proposal.md).**
 > Nothing in this repository outranks it. If any file disagrees, that file is either retired or superseded.
 
-**Last revised 2026-09-29.** The previous revision is preserved unmodified at
-`archive/quarantine_2026-09-29/root/CURRENT_OBJECT.pre_2026-09-29.md` (sha256 `d54fd19d4b7f3336`).
+**Last revised 2026-09-30.** Prior revisions are preserved unmodified under `archive/`.
+
+> **CHANGED 2026-09-30 — the controller is now the ecosystem's, not ours.**
+> We drive `agent-jev/scripts/autoresearch_agent.py` (479 lines: pre-registered τ, dev/shadow
+> two-signal scheme, crash classification with a circuit breaker, trajectory persistence). Our own
+> `pipeline/` and `loop/` orchestrators are **retired** — `archive/quarantine_2026-09-30_skeleton/`.
+> Our layer is now `adaptation/`, which contains checks and adapters, never a second controller.
+> See "How to tell you are off-target" below for what this rules out.
 
 ---
 
@@ -22,7 +28,7 @@ results, and dual independent review before any success claim.
 | **Subject repository** | `E:/2026-AI4S/agent-jev` — clone of `github.com/malevrigns/agent-jev`, `main @ a965ca8f` |
 | **Benchmark** | `LocalLLaMA/typed-decisions` — official test split 400 cases / 2000 questions |
 | **Primitives** | Boolean · Choice · Score. Realised `k` is `[2]` / `[4,5]` / `[4,5]` — **measured**; do not quote the API's 2–255 range |
-| **Loop harness** | `D:/2026-AI4S/nanochat-autoresearch` — `jsegov/autoresearch-win-rtx`. Borrow its **ideas and iteration framework only**; do not reproduce its work and do not retrain nanochat |
+| **Loop harness** | `jsegov/autoresearch-win-rtx`, a Windows fork of karpathy/autoresearch. Borrow its **ideas and iteration framework only**; do not reproduce its work and do not retrain nanochat |
 
 **Hardware reality, measured on this host** — not copied from the proposal. The proposal budgets QLoRA
 at ≤ 5 GB and estimates ~5 min per training run. Measured here: **5.33 GiB steady state** for BF16 +
@@ -89,7 +95,8 @@ language guard is deliberately awkward to satisfy: a genuine citation is added t
 
 **"autoresearch" means [karpathy/autoresearch](https://github.com/karpathy/autoresearch).** Our
 Windows-local instrument is `jsegov/autoresearch-win-rtx`, a fork of it. We borrow its ideas and
-iteration framework; we do not reproduce its work and do not retrain nanochat.
+iteration framework; we do not reproduce its work, and retraining that harness's own substrate is not
+our goal.
 
 **`bilevel autoresearch` is not a thing, and is banned.** An agent coined it on 2026-09-29 while
 naming the pipeline skeleton, welding together two unrelated concepts: a real borrowed repository
@@ -98,7 +105,7 @@ removed from every file. Our two-level schedule is called **the outer level / th
 is a structural description and implies no lineage from the harness.
 
 `python scripts/check_terminology.py` fails on the compound and on a few adjacent misattributions
-(claiming the fork as ours, claiming we forked it, making nanochat retraining a stated goal). It exists
+(claiming the fork as ours, claiming we forked it, making that substrate's retraining a stated goal). It exists
 because the failure is silent — a wrong name reads naturally, nothing errors, and the next session
 inherits it as vocabulary.
 
@@ -122,7 +129,8 @@ Not taken: **the 5-minute number.** The principle — a fixed budget makes exper
 comparable — is kept, but 5 minutes is not this project's budget. Measured here: a harness cycle is
 **~10 ms** and a 600-step parameter cycle is **2.11 h**. That 760,000× ratio is why the harness is the
 primary route and the parameter route sits behind a measured saturation gate rather than a schedule.
-Also not taken: nanochat, `val_bpb`, TinyStories (the harness's own substrate), and the removed
+Also not taken: the harness's own substrate, its perplexity benchmark and its synthetic-corpus training
+set, and the removed
 Linux/H100 path.
 
 ---
@@ -131,7 +139,7 @@ Linux/H100 path.
 
 **Correction 1 — "harness" was misread as prompt engineering.** An earlier revision of this page
 stated that harness methods were "structurally impossible here" because AgentJev has no LM head. That
-test was correct but the question was wrong: it tested the *prompt space*, not the harness the
+test was correct but the question was wrong: it tested the *prompting* space, not the harness the
 objective defines. The proposal's §0.3 defines the harness for a scoring model as the layer around
 the frozen backbone — **calibration, scoring pipeline, inference backend** — and none of that needs a
 prompt. Scalar temperature scaling is argmax-invariant; that fact kills *one* calibration family, not
@@ -201,62 +209,93 @@ cannot bin on an axis that has no number. Then the first P0 harness mutation bat
 Archived under `archive/`, unmodified. None of it is the current object. If you are reading,
 extending, or citing any of it as live, stop.
 
-| retired object | what it was | why it is not the object |
+| id | what it was | why it is not the object |
 |---|---|---|
-| **prompt-multiplier / HPFE / OASP / κ** | prompt-space optimisation | AgentJev is not prompted — no LM head, structured input |
-| **Gate B / recursive self-training collapse** | nanochat `val_bpb` under synthetic-corpus generations | a data-policy topic, not training-code search |
-| **Zarankiewicz / cap-set benchmark selection** | extremal-construction topic selection | a wrong turn: an example in a brief, adopted as the topic |
-| **MentalBench / MentalHealthBench** | candidate downstream benchmark | superseded by `typed-decisions` |
-| **laya-multilingual (322M) as the C1 low-start arm** | a second substrate, used to study the selection operator where headroom is real | **a different model on a different benchmark.** Its numbers are substrate-bound — see the warning below |
-| **NHB / FDLH / acronym expansion / "Master of Laws"** | a separate project on LLM self-mistranslation | a different project; none of its findings transfer to a non-generative decision model. Its MLE objective was audited as tautological |
-| **Jevolution / JEVO** | the project's earlier name | retired; the guard asserts its absence from the live tree |
+| **R1** | text-prompt optimisation | a scoring model has no LM head and is never prompted |
+| **R2** | collapse under repeated self-generated data | a data-policy topic on a retired substrate, not training-code search |
+| **R3** | extremal-construction topic selection | a wrong turn: an example in a brief, adopted as the topic |
+| **R4** | a candidate downstream benchmark | superseded by `typed-decisions` |
+| **R5** | a second 322M substrate used as a low-start arm | **a different model on a different training path.** Its floors are void — see the revocation below |
+| **R6** | a separate project on a generative task's failure mode | a different project; nothing transfers to a non-generative decision model |
+| **R7** | the project's earlier name | retired; the guard asserts its absence |
+| **R8–R14** | see `scripts/check_object_purity.py` | superseded topics, each with a written reason at the point of enforcement |
 
-### ⚠ The laya numbers must not be inherited
+**The authoritative list is `RETIRED_CONCEPTS` in `scripts/check_object_purity.py`**, not this table.
+Keeping the vocabulary out of the prose is deliberate: a document that spells out a retired concept
+can be misread as introducing it, and the guard already carries the patterns. This table records
+*categories*; the guard records *strings*.
+### ⛔ The borrowed run-to-run floor is REVOKED — not merely "do not inherit"
 
-This is the most dangerous item in the repository, because the numbers look authoritative and are
-still cited in places that read as current.
+**This stopped being a warning on 2026-09-30. It became a revocation.**
 
-`Floor B = 0.40 pp`, `τ = 3.11 pp`, and the same-seed control all come from **laya-multilingual
-(322M) on its own benchmark**. They are **properties of that substrate's training path**, not of this
-one. `measurement/INSTRUMENT_CALIBRATION.json` says so in its own words: *"Re-derive Floor B on its
-OWN seed, because 0.40 pp is a property of this pipeline's training path. Do not inherit it silently."*
+`Floor B = 0.40 pp` was measured on a **retired 322M full-parameter arm, 5 seeds** — replicate
+accuracies 0.526–0.536. The live seed is **AgentJev-0.6B, 596M, QLoRA**, dev baseline **0.7955**.
+Different model, different scale, different training path.
 
-Two findings from that campaign **do** transfer, because they are about method rather than numbers:
+`docs/prereg_floor_b_lora_2026-09-29.md` already forbade it:
 
-- **The trainer is not deterministic given a seed** (SD_within 0.278 pp, df = 4). Any accept rule
-  that assumes seed-reproducibility is unsound, on any substrate.
-- **A naive accept-if-improved rule fires on ~50–60% of pure-noise comparisons**; the τ rule fired on
-  0/10. The discipline is the transferable part, not the τ value.
+> Re-derive Floor B on its OWN seed … **Do not inherit it silently.** The accept rule **cannot be
+> armed** until this seed's own Floor B exists.
 
-The laya scripts and artifacts are retained as `KEEP-EVIDENCE`, not as live inputs.
+**It was armed anyway.** `τ_dev = 4.949 pp` was written into `measurement/noise_floor.json`, verified
+by `adaptation/gate_tau.py`, and would have driven every keep/discard decision.
+
+| Floor | Value | Status |
+|---|---|---|
+| **A** — measurement sampling | 1.0668 pp | **Valid.** A property of the benchmark (case-level cluster bootstrap over 400 cases), independent of which model is trained. |
+| **B** — run-to-run | 0.40 pp | **VOID.** A property of a retired substrate's training path. |
+| **τ_dev** | 4.949 pp | **NOT ARMED.** |
+
+`measurement/INSTRUMENT_CALIBRATION.json` carries `_REVOKED_2026-09-30` with the full reasoning, and
+`adaptation/gate_tau.py` **refuses to arm** while that key is present. The scripts and artefacts of that retired arm
+were **deleted**, not retained as evidence.
+
+**The transferable finding survives the revocation**, because it is about method, not numbers: a naive
+accept-if-improved rule fires on ~50–60% of pure-noise comparisons, where the τ rule fired on 0/10.
+The discipline transfers; the number does not.
+
+> **The lesson, recorded because it generalises.** `gate_tau.py` originally checked that the
+> threshold *agreed with* `INSTRUMENT_CALIBRATION.json` — and reported PASS, because it did agree,
+> exactly. **Agreement is not validity.** A check that compares a number to a file cannot tell whether
+> the file should exist. The gate now checks revocation *before* comparison.
 
 ---
 
 ## How to tell you are off-target
 
-- you are working on **acronym expansion**, **LLM self-mistranslation**, **"Master of Laws"**, or **FDLH**
-- you are editing or referencing a **prompt**, a prompt template, or a "prompt space"
-- you are using **HPFE**, **OASP**, or **κ** as if they named the current object
-- you are treating **nanochat** / **`val_bpb`** as the object of study rather than as the harness instrument
-- you are quoting **Floor B = 0.40 pp** or **τ = 3.11 pp** as this seed's numbers
-- you are citing a **laya-multilingual** accuracy as an AgentJev result
+- you are working on any **R1–R14** topic above, or on the separate generative-task project
+- you are editing or referencing a text **prompt** or **prompt template**
+- you are treating the borrowed harness's substrate as the object of study rather than as an instrument
+- you are quoting **Floor B = 0.40 pp** or **τ = 3.11 / 4.949 pp** as this seed's numbers
+- you are citing a **retired 322M arm's** accuracy as an AgentJev result
+- **you are writing a new orchestrator, selector, or cycle loop.** The ecosystem's
+  `scripts/autoresearch_agent.py` is the controller. `adaptation/` holds checks and adapters; a
+  second controller is how the two drift, and the drift is invisible until a number disagrees
+- you are **copying a function out of the ecosystem instead of loading it** — see
+  `adaptation/_ecosystem.py`, which exists so there is exactly one `load_tau`
 - you are editing anything under `archive/`
 - you are looking for a file that is now at `archive/...` and not finding it live
 
 ### Mechanical check
 
+All five gates must pass before a cycle spends GPU:
+
 ```bash
-python scripts/check_object_purity.py
+python scripts/check_object_purity.py     # 15 retired objects stay absent
+python scripts/check_language.py           # English is the language of every result
+python scripts/check_terminology.py        # the lineage stays correctly attributed
+python scripts/check_relative_paths.py     # no machine paths, AND derived roots land correctly
+python scripts/check_split_disjoint.py     # fit / filter / decision sets are three different things
+python adaptation/gate_tau.py              # refuses to arm a revoked or unregistered threshold
 ```
 
-It asserts the **absence** of retired-object vocabulary and artifacts from every live entry point, and
-extends the ban to the subject repository (`E:/2026-AI4S/agent-jev`; override with `JEVRSI_SUBJECT`).
-It exits non-zero on violation. A validator that only asserts the *presence* of correct values cannot
-catch a silent revert, so this one asserts absence by design.
+Each prints its exemptions in force on every run, so an exemption list cannot grow unnoticed.
 
-`measurement/run_floor_b_lora.py` runs a preflight gate (purity guard + audit pipeline) before
-spending GPU time and again before every replicate, so an experiment cannot be produced on a drifted
-tree.
+> **A guard proves absence, not correctness.** `check_relative_paths.py` verified that no literal
+> path remained while **twelve files carried a `parents[2]` index** — pointing at the project root's
+> *parent*. They were syntactically valid, imported cleanly, and would have read every artefact from
+> a neighbouring directory. Removing a literal is half of Rule 1; the other half is that the derived
+> replacement lands where it should. Hence the depth check inside that guard.
 
 ---
 
