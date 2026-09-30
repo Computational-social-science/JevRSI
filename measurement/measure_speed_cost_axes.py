@@ -42,9 +42,9 @@ from __future__ import annotations
 
 # Project root, derived from this file's location rather than hardcoded.
 # A literal machine path here would make the repository uncloneable and unrunnable
-# anywhere else -- see Rule 1 of docs/PROJECT_RULES.md.
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-
+# anywhere else -- see Rule 1 of docs/PROJECT_RULES.md. This file sits one level below the
+# root, so the root is parents[1]; parents[2] would be the root's parent, and every artifact
+# read through it would come from a neighbouring directory.
 import os
 import json
 import pathlib
@@ -56,14 +56,18 @@ import time
 import numpy as np
 import torch
 
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+# Both the subject repository and the base model are EXTERNAL to this repository, so no path to
+# either is portable and none can be derived from __file__. config/paths.json declares them and
+# paths.py raises rather than falling back silently, so a run cannot attribute numbers to a
+# checkpoint it never loaded.
+from paths import backbone, require, subject                                    # noqa: E402
+
 AUTORESEARCH = pathlib.Path(str(ROOT))
-SUBJECT = pathlib.Path(os.environ.get("JEVRSI_SUBJECT", ROOT.parent / "agent-jev")).resolve()
+SUBJECT = require(subject(), "the agent-jev subject repository (JEVRSI_SUBJECT)")
 OUT = AUTORESEARCH / "measurement" / "speed_cost_axes.json"
 SEED_CKPT = SUBJECT / "checkpoints" / "autoresearch" / "final.safetensors"
-# The base model is an EXTERNAL download, so no path to it is portable. Override with
-# JEVRSI_BACKBONE; the default sits beside this repository.
-BACKBONE = str(pathlib.Path(os.environ.get(
-    "JEVRSI_BACKBONE", ROOT.parent / "jev_repro" / "models" / "Qwen3-0.6B")))
+BACKBONE = str(require(backbone(), "the Qwen3 base model (JEVRSI_BACKBONE)"))
 N_QUESTIONS = 120          # enough to average out, small enough to repeat
 REPEATS = 3
 VRAM_BUSY_THRESHOLD_MIB = 2000

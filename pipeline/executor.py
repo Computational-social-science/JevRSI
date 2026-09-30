@@ -41,8 +41,18 @@ import time
 import numpy as np
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SUBJECT = pathlib.Path(os.environ.get("JEVRSI_SUBJECT", ROOT.parent / "agent-jev")).resolve()
+# paths.py lives at the project root. ROOT is put on sys.path immediately below, so the import that
+# reads the subject repository's location must come after that -- hence the two-step form here rather
+# than a single import-and-use line.
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "loop"))
+
+# The subject repository is an EXTERNAL clone, so no path to it is portable and none can be derived
+# from __file__. config/paths.json declares it and paths.py raises rather than falling back silently
+# (Rule 1 of docs/PROJECT_RULES.md).
+from paths import require, subject                                              # noqa: E402
+
+SUBJECT = require(subject(), "the agent-jev subject repository (JEVRSI_SUBJECT)")
 sys.path.insert(0, str(SUBJECT))
 sys.path.insert(0, str(SUBJECT / "scripts"))
 

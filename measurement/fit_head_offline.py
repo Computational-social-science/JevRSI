@@ -42,15 +42,17 @@ from __future__ import annotations
 
 # Project root, derived from this file's location rather than hardcoded.
 # A literal machine path here would make the repository uncloneable and unrunnable
-# anywhere else -- see Rule 1 of docs/PROJECT_RULES.md.
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-
+# anywhere else -- see Rule 1 of docs/PROJECT_RULES.md. This file sits one level below the
+# root, so the root is parents[1]; parents[2] would be the root's parent, and every artifact
+# read through it would come from a neighbouring directory.
 import os
 import argparse
 import json
 import pathlib
 import sys
 import time
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 import numpy as np
 import torch

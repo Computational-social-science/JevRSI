@@ -35,10 +35,17 @@ import subprocess
 import sys
 import time
 
-ROOT = pathlib.Path(str(ROOT))
-SUBJECT = pathlib.Path(os.environ.get("JEVRSI_SUBJECT", ROOT.parent / "agent-jev")).resolve()
+# Project root, derived from this file's location rather than hardcoded: a literal machine path makes
+# the repository uncloneable and unrunnable elsewhere (Rule 1 of docs/PROJECT_RULES.md).
+ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "loop"))
+
+# The subject repository is an EXTERNAL clone, so no path to it is portable and none can be derived
+# from __file__. config/paths.json declares it and paths.py raises rather than falling back silently.
+from paths import require, subject                                              # noqa: E402
+
+SUBJECT = require(subject(), "the agent-jev subject repository (JEVRSI_SUBJECT)")
 
 BUNDLES = ROOT / "measurement" / "logit_bundles"
 RUN_DIR = ROOT / "pipeline_runs" / "pipeline_v1"

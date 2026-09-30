@@ -46,7 +46,21 @@ import sys
 from dataclasses import dataclass, field
 
 import numpy as np
-SUBJECT = pathlib.Path(os.environ.get("JEVRSI_SUBJECT", ROOT.parent / "agent-jev")).resolve()
+
+# Project root, derived from this file's location rather than hardcoded: a literal machine path makes
+# the repository uncloneable and unrunnable elsewhere (Rule 1 of docs/PROJECT_RULES.md).
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+# paths.py lives at the project root, which is not importable from inside a package by default. Putting
+# the root on sys.path is what makes `from paths import ...` work when this module is imported as
+# `harness.harness` from the repository root, as well as when the root is already the working directory.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+# The subject repository is an EXTERNAL clone, so no path to it is portable and none can be derived
+# from __file__. config/paths.json declares it and paths.py raises rather than falling back silently.
+from paths import require, subject                                              # noqa: E402
+
+SUBJECT = require(subject(), "the agent-jev subject repository (JEVRSI_SUBJECT)")
 TYPES = ("boolean", "choice", "score")
 
 

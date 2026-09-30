@@ -34,9 +34,9 @@ from __future__ import annotations
 
 # Project root, derived from this file's location rather than hardcoded.
 # A literal machine path here would make the repository uncloneable and unrunnable
-# anywhere else -- see Rule 1 of docs/PROJECT_RULES.md.
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-
+# anywhere else -- see Rule 1 of docs/PROJECT_RULES.md. This file sits one level below the
+# root, so the root is parents[1]; parents[2] would be the root's parent, and every artifact
+# read through it would come from a neighbouring directory.
 import argparse
 import json
 import math
@@ -49,8 +49,14 @@ import sys
 import time
 from pathlib import Path
 
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+# The subject repository is an EXTERNAL clone, so no path to it is portable and none can be
+# derived from __file__. config/paths.json declares it and paths.py raises rather than falling back
+# silently, so a run cannot attribute numbers to a checkpoint it never loaded.
+from paths import require, subject                                              # noqa: E402
+
 AUTORESEARCH = Path(str(ROOT))
-SUBJECT = pathlib.Path(os.environ.get("JEVRSI_SUBJECT", ROOT.parent / "agent-jev")).resolve()
+SUBJECT = require(subject(), "the agent-jev subject repository (JEVRSI_SUBJECT)")
 PY = sys.executable
 CONFIG = "agentjev/configs/autoresearch.yaml"
 EVALUATOR = "scripts/evaluate_split.py"
