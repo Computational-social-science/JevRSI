@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -97,6 +98,21 @@ RETIRED_CONCEPTS = {
     "static-template": r"static template|static prompt",
     "gate-B": r"Gate[- ]?B|self-training collapse",
     "MentalBench": r"MentalBench|MentalHealthBench",
+    # ---- object: the laya-multilingual 322M substrate --------------------------------------------
+    # The largest surviving contamination, found 2026-09-30. It was never in this list, which is why
+    # 21 live files still referenced it after the earlier purge. The damage was not cosmetic: its
+    # Floor B (0.40 pp, 5 seeds, full-parameter) had been carried into INSTRUMENT_CALIBRATION.json
+    # and thence into tau_dev, so the pre-registered accept threshold of the LIVE seed was a function
+    # of a measurement on a DIFFERENT MODEL -- 322M vs 596M, full-parameter vs QLoRA, replicate
+    # accuracies ~0.53 vs a dev baseline of 0.7955. docs/prereg_floor_b_lora_2026-09-29.md had
+    # already forbidden exactly this ("Do not inherit it silently"), and the threshold was armed
+    # anyway. That file is now revoked and adaptation/gate_tau.py refuses to arm it.
+    #
+    # Enforcement is on the SUBSTRATE NAME, not on the word "Floor B". Floor A is a property of the
+    # benchmark and stays inheritable; Floor B is a property of a training path, and every training
+    # path in this project is the live seed's.
+    "laya-substrate": r"laya[-_ ]?multilingual|laya[-_ ]?typed[-_ ]?decisions"
+                       r"|\blaya\b|convaiinnovolutions/laya|evaluate_laya|train_laya_arm",
     # The project's FORMER name. Renamed to JevRSI on 2026-09-27 (the brief's term; the user retired
     # it). Treating it as live is drift, so naming it now requires a retirement marker in the file.
     "Jevolution": r"\bJevolution\b|\bJEVO\b|\bJevo\b",
@@ -159,6 +175,64 @@ SKIP_DIRS = {".git", "archive", "__pycache__", ".cache", ".pytest_cache", "liter
 SKIP_FILES = {"docs/incident_2026-09-25_tree_loss.md"}
 # The subject repository is a clone of upstream; skip the heavy artifact directories too.
 SUBJECT_SKIP_DIRS = SKIP_DIRS | {"checkpoints", "data", "wandb", "runs", "outputs", "logs"}
+
+# The subject repository is a CLONE of another project's history, and that history is not this
+# project's object. agent-jev's author ran their own experiments on laya-multilingual before settling
+# on the Qwen3-0.6B + LoRA seed; those files are part of commit a965ca8 (2026-09-23) and are the
+# upstream record, not contamination introduced here.
+#
+# The exemption is deliberately narrow. It lists files that are BOTH tracked in the subject repo AND
+# present in upstream's history, so a laya file added by THIS project -- untracked, or new -- is
+# still caught. An earlier untracked typed_decisions/evaluate_laya_variant.py was exactly that case
+# and was removed; had the exemption been a blanket skip of the directory, it would have survived.
+#
+# protocol.json is the single source for the split definition and was verified case-by-case on day 1.
+# Exempting it is not a convenience: deleting it would destroy the provenance of every split.
+SUBJECT_UPSTREAM_EXEMPT = {
+    "typed_decisions/protocol.json":
+        "upstream a965ca8; the split definition's single source, verified case-by-case on day 1",
+    "typed_decisions/evaluate_laya.py": "upstream a965ca8; the upstream author's own substrate study",
+    "typed_decisions/smoke_laya.py": "upstream a965ca8; the upstream author's own substrate study",
+    "typed_decisions/summarize.py": "upstream a965ca8; summariser for the upstream author's study",
+    "typed_decisions/comparison.json": "upstream a965ca8; the upstream author's comparison table",
+    "typed_decisions/laya_model_metadata.json": "upstream a965ca8; upstream model card",
+    "typed_decisions/laya_test_report.json": "upstream a965ca8; upstream test report",
+    "typed_decisions/download_manifest.json": "upstream a965ca8; upstream download manifest",
+}
+
+# Resolved once. `git ls-files` asks the clone itself whether a path is part of its history, which
+# is the definition of "upstream" that cannot be faked by adding a path to the dict above: a file
+# created here is untracked, and an untracked file stays untracked until someone commits it.
+_SUBJECT_TRACKED: set[str] | None = None
+
+
+def subject_tracked_files() -> set[str]:
+    """Paths the subject repo's git history knows about, or an empty set if git is unavailable.
+
+    Empty on failure is the safe direction: no tracked files means no exemptions, so an unreadable
+    subject repo produces violations rather than silent passes.
+    """
+    global _SUBJECT_TRACKED
+    if _SUBJECT_TRACKED is not None:
+        return _SUBJECT_TRACKED
+    _SUBJECT_TRACKED = set()
+    try:
+        repo = Path(os.environ.get(SUBJECT_REPO_ENV, str(SUBJECT_REPO_DEFAULT)))
+        if not repo.is_dir():
+            return _SUBJECT_TRACKED
+        res = subprocess.run(["git", "-C", str(repo), "ls-files"],
+                             capture_output=True, text=True, timeout=60, errors="replace")
+        if res.returncode == 0:
+            _SUBJECT_TRACKED = {ln.strip().replace("\\", "/")
+                                for ln in res.stdout.splitlines() if ln.strip()}
+    except Exception:                                              # noqa: BLE001
+        pass
+    return _SUBJECT_TRACKED
+
+
+def subject_is_upstream(rel: str) -> bool:
+    """True only if `rel` is a path the agent-jev clone's own git history contains."""
+    return rel in subject_tracked_files()
 
 
 def live_files():
@@ -295,7 +369,17 @@ def main() -> int:
 
         hits = {name: len(re.findall(rx, text)) for name, rx in RETIRED_CONCEPTS.items()}
         hits = {k: v for k, v in hits.items() if v}
-        if hits and not rel.startswith(PRIOR_ART_PREFIXES):
+        # Two narrow exemptions, both of them upstream material rather than this project's objects:
+        #   PRIOR_ART_PREFIXES          -- docs/evidence/, which cites other authors by name
+        #   SUBJECT_UPSTREAM_EXEMPT     -- named files inside the agent-jev CLONE, which are that
+        #                                    project's own history (commit a965ca8, 2026-09-23)
+        # The second is keyed by exact path, not by directory, precisely so that a laya file ADDED
+        # to the subject repo by this project is still caught. A blanket directory skip would have
+        # let typed_decisions/evaluate_laya_variant.py -- untracked, introduced here -- through, and
+        # it was only removed because the exemption was this narrow.
+        upstream_ok = (rel in SUBJECT_UPSTREAM_EXEMPT
+                       and subject_is_upstream(rel))
+        if hits and not rel.startswith(PRIOR_ART_PREFIXES) and not upstream_ok:
             declares = any(mk in text for mk in RETIREMENT_MARKERS)
             total = sum(hits.values())
             if declares:
@@ -363,11 +447,19 @@ def main() -> int:
             hits = {name: len(re.findall(rx, text)) for name, rx in RETIRED_CONCEPTS.items()}
             hits = {k: v for k, v in hits.items() if v}
             declares = any(mk in text for mk in RETIREMENT_MARKERS)
-            if hits and not (declares or rel.startswith(PRIOR_ART_PREFIXES)):
+            # CHECK E is a SEPARATE scan from CHECK B/C over the same vocabulary, so it needs its own
+            # copy of the upstream exemption. Adding it in only one place produced the worst kind of
+            # result: a guard that reported the subject repo as impure while an identical file in the
+            # live tree passed, which reads as two different truths about the same content.
+            upstream_ok = subject_is_upstream(rel)
+            if hits and not (declares or rel.startswith(PRIOR_ART_PREFIXES) or upstream_ok):
                 failures.append(
                     f"[E] subject repo {rel} names retired concepts "
                     f"({', '.join(sorted(hits))}) but declares no retirement"
                 )
+            if upstream_ok and hits:
+                notes.append(f"[ok] subject/{rel} {sum(hits.values())}x "
+                             f"({', '.join(sorted(hits))}) -- upstream history, exempt")
             hhits = {name: len(re.findall(rx, text)) for name, rx in HARNESS_CONCEPTS.items()}
             hhits = {k: v for k, v in hhits.items() if v}
             if hhits and not any(mk in text for mk in HARNESS_DECLARATIONS):

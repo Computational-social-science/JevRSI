@@ -1,5 +1,12 @@
 # Proposal Audit: RTX4070 Self-Evolving Jev Framework v6
 
+<!-- RETIRED OBJECT DECLARATION -->
+The laya-multilingual 322M substrate is a RETIRED research object (retired 2026-09-30).
+It is named here only as the record of a measurement that must NOT be inherited: its
+Floor B (0.40 pp) was carried into INSTRUMENT_CALIBRATION.json and thence into the live
+seed's accept threshold. That threshold is revoked. Do not work on this object.
+
+
 **Audit target** `RTX4070_SelfEvolving_Jev_Research_Proposal.md` (381 lines, 10 sections, 6 governance rules)
 **Audit date** 2026-09-29
 **Audit method** Pass 2c — do not assert from the proposal's self-description; first obtain primary evidence (HF Hub API, `temperatures.json` inside the checkpoint), then place it side by side with artifacts this project has already measured

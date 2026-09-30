@@ -57,6 +57,12 @@ SCAN_SUFFIXES = {".py", ".md", ".json", ".sh", ".yaml", ".yml", ".txt", ".toml",
 EXEMPT: dict[str, str] = {
     "scripts/check_relative_paths.py": "this guard must be able to name the pattern it forbids",
     "docs/PROJECT_RULES.md": "Rule 1 states the rule and quotes the forbidden form",
+    "docs/BACKUP_agent_jev_worktree.md":
+        "RESTORE INSTRUCTIONS, not a code path. The file records the tar taken before the first "
+        "autoresearch_agent.py run -- that script calls `git reset --hard` on both the crash and the "
+        "discard path, so the working tree needed protecting first. The absolute path is the -C "
+        "argument of `tar -xf`; rewriting it relative would make the restore command wrong, and a "
+        "backup whose restore command does not work is not a backup.",
     "docs/TERMINOLOGY.md": "quotes a source-repository URL path, not a local filesystem path",
     "CURRENT_OBJECT.md": "carries the rule so a fresh session loading the SSOT cannot miss it",
     # Artifacts that RECORD a path rather than USE one. A run stamp that says where the weights were

@@ -167,12 +167,22 @@ def main() -> int:
         if cyc.action == "error":
             print(f"     ERROR: {cyc.reason}")
             continue
-        m = json.loads((RUN_DIR / f"cycle_{cand.route.replace('.','_')}.json").read_text(encoding="utf-8"))["medium"]
-        print(f"     proxy softCE={m['soft_cross_entropy']:.4f}  medium softCE={m['soft_cross_entropy']:.4f} "
-              f"acc={m['accuracy']:.4f} ECE={m['ece_10_bins_vs_gold_argmax']:.4f}")
+        payload = json.loads((RUN_DIR / f"cycle_{cand.route.replace('.','_')}.json")
+                             .read_text(encoding="utf-8"))
+        # Read BOTH splits from the payload. An earlier version indexed ["medium"] and then printed
+        # that one dict twice under two labels, so every proxy/medium pair in the log read as equal
+        # and the two columns were indistinguishable. The data was always right; the display made
+        # two different numbers look like one.
+        pm, mm = payload["proxy"], payload["medium"]
+        print(f"     proxy  softCE={pm['soft_cross_entropy']:.4f}  n={pm.get('n', pm.get('n_scored'))}")
+        print(f"     medium softCE={mm['soft_cross_entropy']:.4f}  acc={mm['accuracy']:.4f} "
+              f"ECE={mm.get('ece_10_bins_vs_gold_argmax', float('nan')):.4f}")
         print(f"     action={cyc.action}  {cyc.reason}")
         if cyc.action == "keep":
-            incumbent = m
+            # The incumbent is the MEDIUM metrics: the decision set. The proxy is a filter, and an
+            # incumbent carried as proxy numbers would make the next cycle's comparison a
+            # filter-to-filter comparison instead of a decision-set-to-decision-set one.
+            incumbent = mm
     total = time.perf_counter() - t_start
 
     # ---- 3. rebuild from the log alone ----------------------------------------------------------

@@ -30,6 +30,11 @@ DESIGN POINTS THAT ARE NOT OBVIOUS, each of which is a lesson learned the hard w
 Run: python measurement/run_floor_b_lora.py --arm bf16
      python measurement/run_floor_b_lora.py --arm 4bit
 """
+
+# RETIRED OBJECT DECLARATION
+# The laya-multilingual 322M substrate is a retired research object (2026-09-30). It is named below
+# only in a comment recording a MODULE-NOT-FOUND crash caused by this agent's own site-packages
+# rotation. Do not work on this object.
 from __future__ import annotations
 
 # Project root, derived from this file's location rather than hardcoded.

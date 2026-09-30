@@ -167,7 +167,15 @@ class Orchestrator:
         self.gate = update_gate(self.gate, state["harness_slopes"], tolerance=self.epsilon)
         save_gate(self.gate, self.gate_path)
 
-        tried = {r.route for r in self._records() if r.medium is not None}
+        # A route counts as TRIED once it has been ATTEMPTED, whether or not it produced a number.
+        #
+        # The earlier test was `medium is not None`, which excluded every route that failed -- and a
+        # route that fails is precisely the one that must not be re-proposed forever. In a 6-cycle run
+        # that put cal.platt_per_type into 10 log records and starved head.probe_refit, which had
+        # never run at all. An unimplemented route is not a candidate that keeps its place in the
+        # queue; it is a gap in the executor, and the honest response to a gap is to record it (which
+        # the cycle record already does) and move on to the routes that can actually be measured.
+        tried = {r.route for r in self._records()}
         cool = state["cooldowns"]
 
         # (1) prior-art proposals, filtered against permanent rejections
