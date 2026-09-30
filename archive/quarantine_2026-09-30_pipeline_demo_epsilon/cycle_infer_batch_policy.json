@@ -1,5 +1,0 @@
-{
-  "route": "infer.batch_policy",
-  "status": "needs_model_executor",
-  "note": "this route changes the forward pass, so it cannot be evaluated on cached logits. It needs its own executor that runs the model under the mutated pipeline. Not yet wired."
-}
