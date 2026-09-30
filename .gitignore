@@ -14,3 +14,9 @@ __pycache__/
 *.pdf
 *.svg
 *.png
+
+# Credentials. .env.local was committed once (f351cc1) before this rule existed; the value must be
+# treated as disclosed and reissued. Never add an env file again.
+.env
+.env.*
+!.env.example
