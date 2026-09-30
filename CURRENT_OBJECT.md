@@ -1,11 +1,28 @@
 # CURRENT OBJECT — read this first
 
-> **The objective is [`RTX4070_SelfEvolving_Jev_Research_Proposal.md`](RTX4070_SelfEvolving_Jev_Research_Proposal.md).**
-> Nothing in this repository outranks it. If any file disagrees, that file is either retired or superseded.
+> **The objective is [`docs/RESEARCH_OBJECTIVE.md`](docs/RESEARCH_OBJECTIVE.md).**
+> Nothing in this repository outranks it. If any file disagrees, that file is either retired or
+> superseded.
 
 **Last revised 2026-09-30.** Prior revisions are preserved unmodified under `archive/`.
 
-> **CHANGED 2026-09-30 — the controller is now the ecosystem's, not ours.**
+> **CHANGED 2026-09-30 — the objective is restated from zero.**
+> The project is now **JevRSI**: reproduce the
+> [RSI-Jev](https://github.com/Shanghua-Gao/RSI-Jev) self-improvement loop against a
+> **Qwen3-0.6B** backbone and deliver the curve, not a score.
+> `RTX4070_SelfEvolving_Jev_Research_Proposal.md` targeted harness-first optimisation of a retired
+> model; it is superseded and kept only as history.
+>
+> **CHANGED 2026-09-30 — measured, and it is why the objective moved.**
+> Every per-type and per-question calibration family is argmax-invariant on this architecture: all
+> candidates of one question share its type, so a per-type map is one monotone transform over that
+> question's candidates. Five stages spanning ECE 0.3715 → 0.0408 return one identical accuracy,
+> 0.7955. The only family that moves the argmax, a per-position prior, tops out at **+1.14 pp** over
+> a 61-point scan against a pre-registered threshold of **10.685 pp**.
+> RSI-Jev's own confidence head is described the same way. The lever is absent, so it is not the
+> objective. Evidence: `measurement/harness_saturation_2026-09-30.json`.
+>
+> **CHANGED 2026-09-30 — the controller is the ecosystem's, not ours.**
 > We drive `agent-jev/scripts/autoresearch_agent.py` (479 lines: pre-registered τ, dev/shadow
 > two-signal scheme, crash classification with a circuit breaker, trajectory persistence). Our own
 > `pipeline/` and `loop/` orchestrators are **retired** — `archive/quarantine_2026-09-30_skeleton/`.
