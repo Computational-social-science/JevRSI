@@ -1,0 +1,12 @@
+{
+  "_what_this_is": "Project path configuration. Every machine-specific location is declared HERE, once, and read through paths.py, so no module has to guess and a wrong default is changed in one place instead of twelve.",
+  "_rule": "Rule 1 of docs/PROJECT_RULES.md forbids absolute paths in code. This file is the boundary: it holds the few locations that cannot be derived from __file__ (the external agent-jev clone, the downloaded base model, the borrowed harness), each as a path RELATIVE to the project root, so the file itself is portable too.",
+  "_precedence": "environment variable, then this file, then fail loudly. There is no silent fallback, because a run that proceeds with a wrong path produces numbers attributed to a checkpoint it never loaded.",
+  "_cross_volume": "On this host the subject clone and the base model live on a DIFFERENT VOLUME (E:) from this repository (D:). A cross-volume location cannot be expressed relatively, so it is supplied by the environment: JEVRSI_SUBJECT and JEVRSI_BACKBONE. The defaults below are the fallback for a layout where those items sit beside this repository; they are NOT where they are on this host. paths.py raises rather than falling back silently, so a missing override fails at import rather than producing numbers attributed to a checkpoint that was never loaded.",
+  "subject": "../agent-jev",
+  "subject_env": "JEVRSI_SUBJECT",
+  "backbone": "../jev_repro/models/Qwen3-0.6B",
+  "backbone_env": "JEVRSI_BACKBONE",
+  "harness": "../nanochat-autoresearch",
+  "harness_env": "JEVRSI_HARNESS"
+}
