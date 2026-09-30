@@ -131,7 +131,13 @@ def isotonic_confidence(targets: list, probs: list, types: list) -> Stage:
     untouched by this family -- the gain, if any, is on ECE and on the proper scores.
     """
     def pava(x: np.ndarray, y: np.ndarray, w: np.ndarray):
-        """Weighted isotonic regression. Returns the fitted step function's knot/value arrays."""
+        """Weighted isotonic regression. Returns the fitted step function's knot/value arrays.
+
+        The pooling step must pop BOTH offending blocks and push ONE merged block. Popping one and
+        pushing one leaves the list length unchanged, and the loop condition then stays true forever:
+        the merged value is a weighted average of the two it replaced, so it lies between them, so
+        `mean(prev) > mean(merged)` holds after every merge. That is an infinite loop, not a slow one.
+        """
         order = np.argsort(x, kind="stable")
         xs, ys, ws = x[order], y[order], w[order]
         # pool into blocks carrying (weight, weighted sum, size, x-range midpoint)
@@ -140,8 +146,9 @@ def isotonic_confidence(targets: list, probs: list, types: list) -> Stage:
             bw.append(wi); bs.append(wi * yi); bn.append(1); bx.append(xi)
             while len(bw) > 1 and bs[-2] / bn[-2] > bs[-1] / bn[-1]:
                 w2, s2, n2, x2 = bw.pop(), bs.pop(), bn.pop(), bx.pop()
-                bw.append(bw[-1] + w2); bs.append(bs[-1] + s2)
-                bn.append(bn[-1] + n2); bx.append((bx[-1] * 1 + x2) / 2)
+                w1, s1, n1, x1 = bw.pop(), bs.pop(), bn.pop(), bx.pop()
+                bw.append(w1 + w2); bs.append(s1 + s2)
+                bn.append(n1 + n2); bx.append((x1 + x2) / 2)
         vals = np.array([s / n for s, n in zip(bs, bn)])
         edges = np.array(bx)
         return edges, vals
