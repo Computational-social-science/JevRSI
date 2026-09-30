@@ -1,0 +1,52 @@
+{
+  "quarantined": "2026-09-30",
+  "files": 9,
+  "all_sha256_verified": true,
+  "entries": [
+    {
+      "path": "cycle_cal_isotonic_top1.json",
+      "sha256": "99f5dc0e3d58c3f62b065eeadf7db0b410f901a1d809c5b70da17487d2b6e13a",
+      "verified": true
+    },
+    {
+      "path": "cycle_cal_non_monotone_window.json",
+      "sha256": "b8538bc4498fbd88f8822e25ea77fd5ddfc6883de3c51e3062c6b5dd126266bf",
+      "verified": true
+    },
+    {
+      "path": "cycle_cal_platt_per_type.json",
+      "sha256": "896fcfaaf6bb5ffdfa2853fa29d32787b6d02dde23d79a3590f5167acca430e9",
+      "verified": true
+    },
+    {
+      "path": "cycle_cal_vector_temperature.json",
+      "sha256": "24c29c3debbb07958cc69a31da4015cf9e17d4262531a6ad6cd5ceb6db61e5a3",
+      "verified": true
+    },
+    {
+      "path": "cycle_head_probe_refit.json",
+      "sha256": "0ef7fcf092e0ceb915af56dac47e2686aad001a11a273469df57288c856f6d41",
+      "verified": true
+    },
+    {
+      "path": "cycle_infer_batch_policy.json",
+      "sha256": "0a3a693e4f6157ca280b1985ece70f088df228c1971b37054eb9f6c000d9e5cb",
+      "verified": true
+    },
+    {
+      "path": "cycle_pipe_numerical_stability.json",
+      "sha256": "709aa834e831979d125ab65eec15fb18076db2ad813a319b86f6583f5a56f20c",
+      "verified": true
+    },
+    {
+      "path": "cycle_pipe_option_permutation.json",
+      "sha256": "76c516a19db88c646f5f596bc06780a6287824334045ee50c1749ab1cadf10dd",
+      "verified": true
+    },
+    {
+      "path": "gate.json",
+      "sha256": "86e70926b3f77a5d1e5876fc806f78869a081a2906ce8121f632f2ba67429675",
+      "verified": true
+    }
+  ]
+}

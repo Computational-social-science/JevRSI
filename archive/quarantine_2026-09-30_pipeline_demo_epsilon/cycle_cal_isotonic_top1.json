@@ -1,0 +1,54 @@
+{
+  "route": "cal.isotonic_top1",
+  "params": {},
+  "status": "ok",
+  "stage": {
+    "boolean": {
+      "kind": "isotonic_top1",
+      "knots": 92,
+      "top1_range": [
+        0.0,
+        1.0
+      ]
+    },
+    "choice": {
+      "kind": "isotonic_top1",
+      "knots": 50,
+      "top1_range": [
+        0.4286,
+        1.0
+      ]
+    },
+    "score": {
+      "kind": "isotonic_top1",
+      "knots": 19,
+      "top1_range": [
+        0.5,
+        1.0
+      ]
+    }
+  },
+  "proxy": {
+    "n": 160,
+    "accuracy": 0.86875,
+    "soft_cross_entropy": 0.6505016966113177,
+    "brier_sum": 0.06770578460518266,
+    "gold_mass_at_selected_option": 0.6551354520834004,
+    "ece_10_bins_vs_gold_argmax": 0.09725174294280546,
+    "score_expectation_mae": 0.30109372387458877,
+    "chance_corrected": 0.8109375
+  },
+  "medium": {
+    "n": 440,
+    "accuracy": 0.7954545454545454,
+    "soft_cross_entropy": 0.75887282320447,
+    "brier_sum": 0.08276893325283827,
+    "gold_mass_at_selected_option": 0.6307651641440071,
+    "ece_10_bins_vs_gold_argmax": 0.040844177149719746,
+    "score_expectation_mae": 0.3329201957342924,
+    "chance_corrected": 0.7041666666666666
+  },
+  "wall_s": 4.8932,
+  "needs_model": false,
+  "_note": "proxy is the filter, medium is the decision signal. The frozen test split is not read by this executor under any route."
+}

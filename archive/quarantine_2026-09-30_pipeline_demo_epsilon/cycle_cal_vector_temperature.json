@@ -1,0 +1,5 @@
+{
+  "route": "cal.vector_temperature",
+  "status": "not_implemented",
+  "note": "declared route with no implementation yet. Recorded rather than approximated, because a fallback that returns a plausible number would enter the log as evidence about an idea nobody actually tested."
+}
