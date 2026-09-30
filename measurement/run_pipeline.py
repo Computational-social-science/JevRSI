@@ -90,10 +90,10 @@ def preflight() -> bool:
     like evidence. The gates are cheap -- seconds, no GPU -- so there is no reason to make them optional.
     """
     import subprocess
-    print("PREFLIGHT: four project guards (Rule 1 relative paths / Rule 2 English / Rule 3 vocabulary / Rule 4 purity)")
+    print("PREFLIGHT: five project guards (Rule 1 relative paths / Rule 2 English / Rule 3 vocabulary / Rule 4 purity / proposal 4.2 split disjointness)")
     ok = True
     for g in ("check_language.py", "check_terminology.py", "check_object_purity.py",
-              "check_relative_paths.py"):
+              "check_relative_paths.py", "check_split_disjoint.py"):
         r = subprocess.run([PY, str(ROOT / "scripts" / g)], capture_output=True, text=True)
         verdict = "PASS" if r.returncode == 0 else "FAIL"
         print(f"  [{verdict}] {g}")

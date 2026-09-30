@@ -57,6 +57,12 @@ import numpy as np
 import torch
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+# paths.py sits at the project root and this file lives one level below it, so the root is not
+# importable until it is put on sys.path. This script is normally launched with the SUBJECT repo as
+# the working directory, which is exactly the case where the root is absent from sys.path.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 # The subject repository is an EXTERNAL clone, so no path to it is portable and none can be
 # derived from __file__. config/paths.json declares it and paths.py raises rather than falling back
 # silently, so a run cannot attribute numbers to a checkpoint it never loaded.
