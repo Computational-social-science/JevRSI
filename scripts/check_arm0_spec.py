@@ -153,19 +153,29 @@ def check(spec: dict) -> tuple[int, int, list[str]]:
     # 2. the extras splat cleanly
     for name, fields in (("arch_extra", arch_fields), ("fit_extra", fit_fields)):
         extra = spec.get(name) or {}
-        for k in sorted(extra):
-            if k.startswith("_"):
-                continue
+        real = [k for k in extra if not k.startswith("_")]
+        # An underscore key here is NOT a comment. Both extras are splatted as **kwargs into a
+        # dataclass constructor, so `_xattn_heads` reaches ArchConfig.__init__ as a keyword and
+        # raises TypeError. This was written by hand as a comment, shipped, and only surfaced when
+        # the arm actually ran -- which is the whole reason this check exists.
+        checks += 1
+        comment_keys = [k for k in extra if k.startswith("_")]
+        if comment_keys:
+            failures += 1
+            lines.append(f"    [FAIL] NOT-A-COMMENT {name} carries underscore key(s) "
+                         f"{comment_keys}.")
+            lines.append(f"             {name} is splatted as **kwargs, so an underscore does not "
+                         f"make a key a comment -- it makes it an unexpected keyword argument. "
+                         f"Move the note to the top level of the spec as a sibling string.")
+        for k in sorted(real):
             checks += 1
             if k not in fields:
                 failures += 1
                 lines.append(f"    [FAIL] UNKNOWN     {name}.{k} is not a field on "
                              f"{'ArchConfig' if name == 'arch_extra' else 'FitConfig'}")
-        real = [k for k in extra if not k.startswith("_")]
-        checks += 1
         bad = [k for k in real if k not in fields]
-        if not bad:
-            lines.append(f"    [PASS] {name:11} {len(real)} field(s), all present on the dataclass")
+        if not bad and not comment_keys:
+            lines.append(f"    [PASS] {name:11} {len(real)} field(s), all real, no pseudo-comments")
 
     # 3. load-bearing values
     for k, want, why in LOAD_BEARING:
@@ -216,6 +226,15 @@ def self_test(spec: dict) -> int:
          {**spec, "lr_head": 1e-4}, "LOAD-BEARING"),
         ("autocast_bf16 pinned against the derivation",
          {**spec, "autocast_bf16": True}, "DERIVED"),
+        # This one actually happened. An underscore key inside arch_extra reads like a comment and
+        # is splatted into ArchConfig(**...) as a keyword, so the arm dies with
+        # "unexpected keyword argument '_xattn_heads'" -- after the 2.28 GB model has loaded.
+        ("a pseudo-comment inside arch_extra",
+         {**spec, "arch_extra": {**(spec.get("arch_extra") or {}), "_note": "looks safe"}},
+         "NOT-A-COMMENT"),
+        ("a pseudo-comment inside fit_extra",
+         {**spec, "fit_extra": {**(spec.get("fit_extra") or {}), "_why": "looks safe"}},
+         "NOT-A-COMMENT"),
     ]
     ok = True
     for name, bad, expect in cases:
