@@ -1,0 +1,32 @@
+{
+  "_what_this_is": "Machine-readable projection of docs/prereg_tau_harness_2026-09-30.md, in the field layout the ecosystem's load_tau() expects. NOT a new measurement: every number is copied from the pre-registration, which is the authority.",
+  "_source_prereg": "docs/prereg_tau_harness_2026-09-30.md",
+  "_frozen": "2026-09-30, before any P0 candidate was evaluated under this rule",
+  "tau_pp": 10.685,
+  "exact": {
+    "paired_se_pp": 2.0639889418654,
+    "bonferroni_horn_factor": 5.17686,
+    "horizon_H": 1000,
+    "product": 10.684981793585314,
+    "rounded_to": "10.685",
+    "note": "the product is the full float; tau_pp is its 3-decimal rounding because load_tau divides by 100. A future revision must change factor, SE, product and tau_pp together -- the gate re-derives the product and refuses if they disagree."
+  },
+  "decision_metric": "accuracy",
+  "decision_split": "medium (carved from dev by whole case; 88 cases / 440 questions)",
+  "accept_rule": "delta = decision_value - baseline; keep if delta >= tau. Single metric, single threshold, taken unchanged from agent-jev/scripts/autoresearch_agent.py L391-448.",
+  "reproduces": {
+    "script": "measurement/floor_a_dev_bootstrap.py",
+    "replicates": 10000,
+    "seed": 0,
+    "unit": "case",
+    "cluster_se_pp": 2.154426342679277,
+    "design_effect": 1.2551937756823295,
+    "reproduces_previous": "2.14 pp recorded as dev_split_resolution.acc_se_pp, whose source file was absent from the live tree and is therefore re-derivable only from here"
+  },
+  "not_for": {
+    "inner_qlora_level": "NOT PRE-REGISTERED. QLoRA training is stochastic; its run-to-run dispersion is a property of the training path on this seed and has not been measured with 5 seeds. The 0.40 pp previously in circulation was measured on a retired 322M arm and is VOID (see INSTRUMENT_CALIBRATION._REVOKED_2026-09-30).",
+    "frozen_test_split": "V is not read by any measurement behind this threshold. Rule 1 is untouched.",
+    "non_deterministic_harness": "a harness stage WITH a fitted stochastic component would need a run-to-run floor of its own; the stages measured here are deterministic and bit-identical across independent evaluations."
+  },
+  "revision_policy": "tau may be revised only by a new pre-registration stating what was measured and why the measurement changed. It may NOT be revised after seeing which candidates pass."
+}

@@ -61,13 +61,50 @@ def fail(msg: str, detail: str = "") -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Verify the accept threshold is pre-registered.")
-    ap.add_argument("--tau-file", default=str(ROOT / "measurement" / "noise_floor.json"))
+    ap.add_argument("--tau-file", default=None,
+                    help="defaults to the harness threshold when --level harness, and is not "
+                         "consulted at all when --level param")
     ap.add_argument("--decision-metric", default="accuracy",
                     choices=["accuracy", "skill"],
                     help="must match what the loop is invoked with; tau is calibrated on this scale")
+    ap.add_argument("--level", default="harness", choices=["harness", "param"],
+                    help="which level of the loop is about to spend GPU. The two have different noise "
+                         "structures and therefore different thresholds: a harness candidate is a "
+                         "deterministic function of cached logits and needs only a measurement floor, "
+                         "while a QLoRA cycle trains weights and needs a run-to-run floor that has "
+                         "not been measured on this seed.")
     a = ap.parse_args()
 
-    tau_path = pathlib.Path(a.tau_file)
+    # ---- the inner level has no threshold, and the reason is structural -------------------------
+    if a.level == "param":
+        cal = json.loads(CALIBRATION.read_text(encoding="utf-8")) if CALIBRATION.exists() else {}
+        rev = cal.get("_REVOKED_2026-09-30") or {}
+        print("=" * 78)
+        print("tau gate -- REFUSED: the inner (QLoRA) level has no pre-registered threshold")
+        print("=" * 78)
+        print("  A QLoRA cycle trains weights. Its noise is run-to-run dispersion of a stochastic")
+        print("  procedure, which is a property of the training path ON THIS SEED and has not been")
+        print("  measured: measurement/floor_b_lora_runs/ holds 1 of 5 seeds, stopped at 325/600 steps.")
+        print()
+        print(f"  the number previously in circulation: {rev.get('what', 'tau derived from a void floor')}")
+        if rev.get("why"):
+            print(f"  why it is void: {rev['why'][:300]}")
+        if rev.get("how_to_un_revoke"):
+            print(f"  to un-revoke: {rev['how_to_un_revoke']}")
+        print()
+        print("  Note this is a FLOOR question, not a threshold question. A harness candidate is a")
+        print("  deterministic function of cached logits -- measured bit-identical across independent")
+        print("  evaluations -- so it needs only a measurement floor, which exists. A training run is")
+        print("  not deterministic given a seed, so it needs a run-to-run floor, which does not.")
+        print("  Conflating the two is what produced the unusable threshold this repository retired.")
+        print("\n[GATE: FAIL] the outer level is authorised; the inner level is not.")
+        return 1
+
+    if a.tau_file:
+        tau_path = pathlib.Path(a.tau_file)
+    else:
+        # The default depends on the level, and for `param` we never get here.
+        tau_path = ROOT / "measurement" / "tau_harness.json"
     if not tau_path.exists():
         return fail(
             f"threshold file not found: {tau_path}",
@@ -87,7 +124,7 @@ def main() -> int:
     # A gate that only checks agreement therefore armed a threshold that was explicitly not armable.
     # So validity is checked FIRST, and a revoked source stops the run regardless of agreement.
     revoked = cal.get("_REVOKED_2026-09-30") or cal.get("_REVOKED")
-    if revoked:
+    if revoked and tau_path.name == "noise_floor.json":
         print("=" * 78)
         print("tau gate -- REFUSED: the calibration source is REVOKED")
         print("=" * 78)
@@ -105,6 +142,13 @@ def main() -> int:
               "from a measurement of a different model on a different training path is not a "
               "threshold for this seed, and no amount of internal agreement makes it one.")
         return 1
+    if revoked and tau_path.name != "noise_floor.json":
+        print(f"  note: INSTRUMENT_CALIBRATION.json is revoked ({revoked.get('what', '')[:90]})")
+        print("        -- that revocation applies to the FLOOR it contained, not to this threshold.")
+        print(f"        This threshold comes from {tau_path.name}, whose floor was measured on THIS")
+        print("        split by measurement/floor_a_dev_bootstrap.py. The two are different files")
+        print("        for different reasons, and arming one says nothing about the other.")
+        print()
 
     thresholds = cal.get("thresholds", {})
     if a.decision_metric not in ("accuracy",):
@@ -117,13 +161,45 @@ def main() -> int:
             "UNVALIDATED on this scale. Re-run with --decision-metric accuracy, or pre-register a "
             "threshold for the other scale before using it.")
 
-    key = "tau_dev"
-    if key not in thresholds:
-        return fail(f"{CALIBRATION.name} has no thresholds.{key}",
-                    f"available: {sorted(thresholds)}")
-    registered = thresholds[key].get("value")
-    if registered is None:
-        return fail(f"thresholds.{key} has no 'value' (proportion) field")
+    # The threshold file is now SELF-CONSISTENT rather than cross-checked against
+    # INSTRUMENT_CALIBRATION.json, and the difference is not cosmetic. The old check compared
+    # noise_floor.json against thresholds.tau_dev, which is the revoked value -- so the only way to
+    # satisfy it was to carry the revoked number forward. The harness threshold has a different
+    # provenance: a floor measured on THIS decision split, in a file that can be re-run.
+    #
+    # What is checked instead is the arithmetic that produced it, because that is the part a later
+    # session could plausibly get wrong: the factor times the standard error must equal the published
+    # tau, and the preregistration must be the named source.
+    spec = json.loads(tau_path.read_text(encoding="utf-8"))
+    prereg = ROOT / "docs" / "prereg_tau_harness_2026-09-30.md"
+    if not prereg.exists():
+        return fail(f"the pre-registration is missing: {prereg}",
+                    "A threshold with no written derivation behind it is a constant.")
+    if spec.get("_source_prereg") and prereg.name not in str(spec["_source_prereg"]):
+        return fail(f"{tau_path.name} names a different pre-registration: "
+                    f"{spec.get('_source_prereg')!r}")
+    ex = spec.get("exact", {})
+    factor, se = ex.get("bonferroni_horn_factor"), ex.get("paired_se_pp")
+    if factor is None or se is None:
+        return fail(f"{tau_path.name} does not record the factor and the SE it was built from",
+                    "The gate needs both to re-derive tau rather than trust it.")
+    product = factor * se
+    published = spec.get("tau_pp")
+    if published is None:
+        return fail(f"{tau_path.name} has no tau_pp (percentage points)")
+    if abs(product - published) > 0.002:
+        return fail(
+            f"the arithmetic does not close: {factor} x {se} = {product:.4f} pp, "
+            f"but tau_pp = {published}",
+            "One of the three numbers was edited. They travel together or not at all.")
+    if ex.get("product") is not None and abs(ex["product"] - product) > 1e-6:
+        return fail(f"{tau_path.name} records product={ex['product']} but factor x SE = {product}")
+    if spec.get("decision_metric") and spec["decision_metric"] != a.decision_metric:
+        return fail(
+            f"this threshold is on {spec['decision_metric']!r}, the loop was invoked with "
+            f"{a.decision_metric!r}",
+            "The ecosystem agent marks a non-accuracy metric as UNVALIDATED on this scale.")
+    registered = published / 100.0
 
     # Resolve through the ecosystem's own reader, so units and field names are its interpretation.
     sys.path.insert(0, str(ROOT))
@@ -140,14 +216,19 @@ def main() -> int:
     print("=" * 78)
     print("tau gate -- the accept threshold is pre-registered, measured, and on the right scale")
     print("=" * 78)
-    print(f"  file            {tau_path}")
-    print(f"  single source   {CALIBRATION.name} -> thresholds.{key}")
-    print(f"  decision split  {thresholds[key].get('use_for', '(unstated)')}")
+    print(f"  level           {a.level}  (harness: deterministic, measurement floor only)")
+    print(f"  threshold file  {tau_path.name}")
+    print(f"  preregistration {prereg.name}")
+    print(f"  decision split  {spec.get('decision_split', '(unstated)')}")
     print(f"  decision metric {a.decision_metric}")
     print()
-    print(f"  registered (proportion)   {registered!r}")
+    print(f"  paired SE                 {se:.6f} pp   ({spec['reproduces']['unit']}-level bootstrap, "
+          f"{spec['reproduces']['replicates']} replicates)")
+    print(f"  Bonferroni-Horn factor    {factor:.5f}    (H = {ex.get('horizon_H')})")
+    print(f"  factor x SE               {product:.4f} pp")
+    print(f"  published tau_pp          {published} pp")
     print(f"  loaded     (proportion)   {got!r}")
-    print(f"  in percentage points     {got*100:.6f} pp")
+    print(f"  in percentage points     {got*100:.4f} pp")
 
     if abs(got - registered) > 1e-12:
         return fail(
