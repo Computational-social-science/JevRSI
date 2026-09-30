@@ -1,0 +1,57 @@
+{
+  "_what_this_is": "Arm 0 -- our v1.0. RSI-Jev's recipe on a Qwen3-0.6B backbone, run through THEIR code unmodified.",
+  "_how_this_is_run": "scripts/release_train.py in the reference repository, with --model pointed at the local Qwen3-0.6B and --corpus at the output of THEIR scripts/build_synth_corpus.py. No file of theirs is edited. The two adaptations are a path and a model name, and nothing else.",
+  "_why_no_rewrite": "An earlier version of this file expressed the same recipe as configuration for a DIFFERENT training program, and that was wrong twice over. It reimplemented 5,166 lines of working code, and its own converter produced 23,319 questions against their 25,859 -- it silently dropped 10% of the corpus, and it ordered boolean options [true, false] where their contract enforces (false, true). Their builder does the domain-level decontamination too, and reports state_overlap_with_typed_decisions: 0. Reusing the script is both less work and more correct than reimplementing it.",
+
+  "steps": 1500,
+  "sources": "synth",
+  "seed": 17,
+
+  "fit_extra": {
+    "_note": "Left at their defaults unless stated. Every value below is either their default or their v1.0 record, and the comment says which.",
+
+    "objective": "soft_ce",
+    "batch_size": 16,
+
+    "lr_base": 5e-6,
+    "base_schedule": "cosine",
+
+    "lr_head": 1e-4,
+    "head_schedule": "constant",
+
+    "lr_mix": 1e-1,
+
+    "label_smoothing": 0.0,
+    "head_weight_decay": 0.0,
+
+    "options_shuffle": true,
+
+    "freeze_input_embedding": true,
+    "scorer_fp32_outside_autocast": true,
+    "grad_checkpoint": true,
+
+    "_v2_1_not_applied": "lower_layers_n and lower_layers_lr_scale belong to their v2.1 and are deliberately absent. Arm 0 reproduces v1.0."
+  },
+
+  "_reference": {
+    "repo": "https://github.com/Shanghua-Gao/RSI-Jev",
+    "record": "versions/v1.0.md section 2",
+    "their_base": "Qwen3.5-2B-Base",
+    "their_hardware": "one H100 80 GB, ~13 min at 2B",
+    "their_held_out_top1": 0.662,
+    "their_jev_reference": 0.727,
+    "their_majority_baseline": 0.5185,
+    "_not_comparable": "Their numbers came from an H100 with a different kernel stack. They are recorded for orientation and are never differenced against ours."
+  },
+
+  "_ours": {
+    "backbone": "Qwen3-0.6B, local, unmodified",
+    "corpus": "E:/2026-AI4S/corpus_rsijev -- built by their scripts/build_synth_corpus.py: 6,977 cases / 25,859 questions, plus 437 adjacent-domain cases held aside",
+    "seed_order": "17, then 29 and 43. Theirs judges the mean of three and fixed 17 as primary in advance; that order is kept."
+  },
+
+  "_unresolved_before_this_arm_can_run": [
+    "MEASURED, NOT ASSUMED: whether a 0.6B tower trains full-parameter in 12 GB under this recipe. Their defaults assume an H100 80 GB. A probe under a different program reported 11,972 of 12,282 MiB, but that program is not this one and the number does not transfer.",
+    "Their fla/Triton stack is pinned to torch 2.7.1+cu128 and this host runs torch 2.10. Whether their code path runs here at all is measured before the arm is launched, not discovered by it."
+  ]
+}
