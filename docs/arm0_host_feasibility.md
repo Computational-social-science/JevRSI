@@ -146,7 +146,7 @@ model size.
 
 ---
 
-### Evaluation OOMs where training does not
+### Evaluation OOMs where training does not — and the first diagnosis was wrong
 
 The run finished with exit 0 and wrote every record, but the CUDA allocator reported repeated
 failures during evaluation:
@@ -156,36 +156,44 @@ memory allocation failed with OOM on device 0 while trying to allocate 134217728
 (free: 0, total: 12,878,086,144)
 ```
 
-Training peaked at 96.7% and held; evaluation hit the wall. The cause is structural rather than
-incidental: **training runs with `grad_checkpointing`, evaluation does not**, and both evaluation
-paths are `@torch.no_grad`, so the difference is activation retention, not graph construction.
-`eval_batch_size: 32` is their DEFAULTS, set for an 80 GB card.
+The first explanation offered here was that evaluation lacks `grad_checkpointing` and that
+`eval_batch_size: 32` is too large for a 12 GB card. **That explanation was wrong, and it was used
+to change a value in the spec before being tested.**
 
-This is the first adaptation this project has to make, and it is a one-key change with no edit to
-their code: `eval_batch_size` is a top-level spec key that `run_arm_lib` reads directly. It affects
-evaluation only -- it changes how many questions are scored per forward pass, not what is scored,
-not the metric, and not the training. It is still an adaptation, and it is recorded as one.
+A control at `steps: 1` with `freeze_base: true` completes all three targets at
+`eval_batch_size: 32` with **zero OOM**:
 
-`batch_size: 16` is their training number and is not being touched. If the real 1,500-step arm OOMs
-in training, the levers in order are `batch_size`, then a CPU-resident fp32 optimiser master, and
-each would need its own record.
+```
+saved release checkpoint -> ...\ck32 (309 tower tensors)
+[native/canonical] typed_decisions  minDS -31.10 (ctrl -21.75)  AURC 0.6026 (ctrl 0.4888)
+```
 
-**Measured, not assumed.** A control run at `steps: 1` with `freeze_base: true` -- which drops the
-training-side footprint to nothing and leaves evaluation as the only consumer -- completes all three
-targets at `eval_batch_size: 8` with no OOM, and writes every record. That is what makes 8 the
-spec's value rather than a guess: 8 is the setting that was observed to work, and 32 is the setting
-that was observed to fail.
+So 32 is not the fault. What the isolation experiment actually changed is the thing that matters:
+`freeze_base: true` removes the 8.88 GiB optimiser state, and with it gone, 32 fits. The original
+OOM was **full-parameter training leaving its optimiser state resident at 96.7% of the card while
+evaluation allocated on top of it** -- the two together, not `eval_batch_size` alone.
 
-A note on a probe that did not measure what it intended: `steps: 0` is not "skip training" in their
-code, it is a load check, and `fit()` rejects it without `init_from` --
-`ValueError: steps=0 is only meaningful with init_from (a load check)`. The isolation above uses
-`steps: 1` with the tower frozen instead, which reaches the same separation through supported
-values.
+That is a different fault with a different fix, and the experiment designed to test necessity
+instead removed the very cause. The design error is worth naming: to test whether a parameter
+matters, the isolation must preserve the conditions that produced the fault.
 
-`eval_batch_size: 8` is pinned in the spec's load-bearing list, so a later reader who restores their
-DEFAULTS of 32 is caught by `scripts/check_arm0_spec.py` rather than by an OOM after 30 hours of
-training. `batch_size` is pinned to 16 in the same list, for the opposite reason: it is *their*
-number and nothing on this host justifies changing it.
+`eval_batch_size: 8` is **kept**, and what it is now recorded as is a *precaution* rather than a
+measured necessity: evaluation will run against whatever the training step leaves resident on the
+real arm, and a fourfold cut in per-pass activation is cheap insurance for a setting that changes
+nothing about what is scored, what metric is used, or how the model was trained. A necessity test at
+`freeze_base: false` is the experiment that would settle it, and it is the one this project should
+have run first.
+
+### Two probes that did not measure what they intended
+
+Both are recorded because the failure mode is the reusable part.
+
+- `steps: 0` is not "skip training" in their code. It is a load check, and `fit()` rejects it
+  without `init_from`: `ValueError: steps=0 is only meaningful with init_from (a load check)`. The
+  work-around is `steps: 1`, not `steps: 0`.
+- The `freeze_base: true` isolation described above removed the cause of the OOM it was meant to
+  study, and so could only have returned a false "no problem". A negative result from an experiment
+  that removed the phenomenon is not evidence of its absence.
 
 ### What the probe scored, and what it does not mean
 

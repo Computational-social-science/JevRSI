@@ -87,14 +87,18 @@ LOAD_BEARING = [
     ("sources", "synth", "the distillation corpus alone. Their v2.0 mixes in the benchmark's own "
                          "train split; that is their later release, not this one."),
     ("seed", 17, "their primary seed, fixed in advance."),
-    # An adaptation, not their value -- but a REQUIRED one, and one that must not be silently
-    # reverted to their DEFAULTS of 32. Their own 3-step probe trained at 96.7% of this card and
-    # then OOMed repeatedly during evaluation, because training has grad_checkpointing and
-    # evaluation does not. Left unpinned, the next reader would set it back to 32 and rediscover
-    # the OOM after a full training run.
-    ("eval_batch_size", 8, "OURS, forced by measurement: evaluation OOMs at their default of 32 on a "
-                           "12 GB card while training holds at 96.7%. Evaluation-only; it changes "
-                           "how many questions are scored per forward pass and nothing else."),
+    # An adaptation, not their value. An earlier version of this entry claimed 32 was observed to
+    # fail, which was wrong -- a control at steps 1 with freeze_base true completes at 32 with zero
+    # OOM, so the isolation experiment never reproduced the fault. The 3-step probe's OOM came from
+    # full-parameter training leaving 8.88 GiB of optimiser state resident at 96.7% and evaluation
+    # allocating on top of it. 8 is kept as a PRECAUTION, not as a measured necessity, and the
+    # reason recorded here says so: pinning it without saying why would let the next reader
+    # "restore" 32 against a reason that is not true.
+    ("eval_batch_size", 8, "OURS, a precaution. Their default 32 completes all three targets with "
+                           "zero OOM on this card; the 3-step probe OOMed because full-parameter "
+                           "training leaves the 8.88 GiB optimiser state resident at 96.7% and "
+                           "evaluation allocates on top of it. Evaluation-only: it changes how many "
+                           "questions are scored per forward pass and nothing else."),
 ]
 
 

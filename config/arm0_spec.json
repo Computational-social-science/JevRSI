@@ -39,7 +39,7 @@
   "prior_kl": 0.0,
 
   "eval_batch_size": 8,
-  "_eval_batch_size_is_ours": "8, against their DEFAULTS of 32. This is the FIRST adaptation this project makes to their recipe, and it is forced: their own 3-step probe trained to 96.7% of the card without incident and then hit repeated CUDA OOM during evaluation, because training runs with grad_checkpointing and evaluation does not. It changes how many questions are scored per forward pass and nothing else -- not what is scored, not the metric, not the training, not the model. 8 rather than 16 because the margin at 32 was zero and 16 was not measured; 8 is a fourfold reduction chosen for headroom, and a measurement rather than a bisection would settle it.",
+  "_eval_batch_size_is_ours": "8, against their DEFAULTS of 32. A first version of this note claimed 32 was observed to fail, and that was wrong: a control at steps 1 with freeze_base true completes all three targets at 32 with zero OOM, so the isolation experiment did not reproduce the fault and could not have shown 8 to be necessary. The real cause of the OOM in the 3-step probe is that full-parameter training leaves the 8.88 GiB optimiser state resident at 96.7% of the card and evaluation then allocates on top of it. So 8 is kept as a PRECAUTION, on the reasoning that evaluation will run against whatever the training step left resident on the real arm, and a fourfold reduction in per-pass activation is cheap insurance for a setting that changes nothing about what is scored. It is a precaution, not a measured necessity, and a necessity test at freeze_base false is recorded in docs/arm0_host_feasibility.md.",
 
   "arch_extra": {
     "xattn_heads": 4
