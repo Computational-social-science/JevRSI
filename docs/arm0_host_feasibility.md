@@ -118,24 +118,33 @@ What came back, read from `ckpt/meta.json`:
 **A 1.79 GB checkpoint on disk is the proof that full-parameter training happened.** A frozen-tower
 arm would have written a ~29 MB head and nothing else.
 
-### Step time is NOT yet known
+### Step time — measured, and the first estimate was wrong
 
-`train_seconds: 467` for 3 steps cannot be turned into a per-step figure. It contains the one-off
-costs -- encoding the corpus, materialising candidate vectors, writing 1.79 GB -- and a 3-sample
-cannot separate them. Two bounds, both stated rather than guessed:
+`train_seconds: 467` for 3 steps cannot be turned into a per-step figure, and the first attempt to
+bound it produced numbers that were off by more than an order of magnitude. It attributed all 467 s
+to the 3 steps and reported 156 s/step, giving 32-65 h for a 1,500-step arm.
+
+A later control run printed the line their own trainer emits:
 
 ```
-upper (all 467 s attributed to steps)   156 s/step  ->  1,500 steps = 64.9 h
-lower (one-off costs removed, roughly)  ~78 s/step  ->  1,500 steps = 32.4 h
+trained 6277 cases in 1s  loss [1.2714]
 ```
 
-The true figure sits in that range and **must be measured with a longer probe before any runtime
-is quoted**. Their 1,500 steps at 2B took about 13 minutes on an H100 80 GB; the ratio between that
-and either bound above is not a meaningful comparison, since hardware, precision stack and model
-size all differ.
+**One step takes about one second.** The 467 s is dominated by costs that do not scale with steps --
+encoding the corpus, materialising candidate vectors, writing 1.79 GB -- and dividing it by 3
+charged every one of those to the training. At ~1 s/step a 1,500-step arm is on the order of 25
+minutes, not two and a half days.
 
-Evaluation of the probe (1,000 MMLU-Pro + 400 typed-decisions, one pass, `repeat_eval: null`) ran
-longer than the training it followed, which is worth knowing before a 1,500-step arm is scheduled.
+That single sample is not enough to schedule against, and a 30-step probe is running to settle it.
+The lesson is the one the correction itself demonstrates: **a total divided by a small sample is a
+bound, not a measurement**, and the first honest statement should have been "the one-off costs
+dominate and I cannot separate them" rather than two numbers derived from the same wrong division.
+
+Their 1,500 steps at 2B took about 13 minutes on an H100 80 GB. Ours at 0.6B on a 4070 landing near
+25 minutes is not a meaningful ratio -- different hardware, different precision stack, different
+model size.
+
+---
 
 ### Evaluation OOMs where training does not
 
