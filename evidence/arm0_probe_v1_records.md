@@ -28,8 +28,14 @@ use_cache=True is incompatible with gradient checkpointing. Setting use_cache=Fa
                                                           ^ grad_checkpointing IS active
 ```
 
-The two runs agreed **to full float precision**, so the evaluation is deterministic and one run is
-sufficient evidence for any number below.
+The two runs agreed **to full float precision**. That establishes **determinism, not correctness**,
+and the distinction matters enough to state here: `planted-truth` — *"a pipeline that is consistently
+wrong is still consistent. Internal agreement, stability under iterations, and smooth residuals are
+properties of the machinery, not of the answer."* An earlier version of this file offered the
+agreement as sufficient evidence; it is not, and the reason is that no independent route to these
+numbers exists yet (see `docs/arm0_acceptance_gate.md`, "What this gate cannot do"). What the
+agreement does buy: a single run is enough to *compare* against, because repeating it changes
+nothing.
 
 The control rows are **arm 0's anchors**: `typed_decisions` AURC 0.4919, noul 0.5567, choice 0.3767,
 score 0.3063 under canonical.
