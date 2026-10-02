@@ -18,6 +18,55 @@ Qwen3-0.6B, seed 17, steps 1. Reproduced twice, agreeing to full float precision
 | mmlu_pro_1k | candidate | reversed | 0.8448 | -2.21 | — | 0.1200 | — |
 | typed_decisions | candidate | reversed | 0.5718 | -40.26 | 0.4967 | 0.2800 | 0.3237 |
 
-Full per-question records (21,792 rows): E:/2026-AI4S/arms/arm0_probe_v1/out/
-arm0probe.items.jsonl — kept out of the repository at 6.7 MB; regenerate with the
-command in docs/reproduction_audit.md.
+## What the run's own stdout confirms
+
+```
+tower moved: max |dw| over probe tensors = 5.007e-06     <- their guard fired
+trained 6277 cases in 3s  loss [1.2721]                  <- n_train_cases matches their 6277
+saved release checkpoint -> (309 tower tensors)
+use_cache=True is incompatible with gradient checkpointing. Setting use_cache=False.
+                                                          ^ grad_checkpointing IS active
+```
+
+The two runs agreed **to full float precision**, so the evaluation is deterministic and one run is
+sufficient evidence for any number below.
+
+The control rows are **arm 0's anchors**: `typed_decisions` AURC 0.4919, noul 0.5567, choice 0.3767,
+score 0.3063 under canonical.
+
+The candidate is **worse than the control on nearly every cell**. That is what one step does — the
+readout head is freshly initialised and a single optimiser step has not yet undone the damage. It is
+a pipeline sanity check, not a result about the recipe, and must not be reported as one.
+
+## Finding: option-order sensitivity is not produced by training
+
+`eval_option_orders: ["canonical", "reversed"]` was omitted from every earlier spec of this project.
+It is doing real work, and for a sharper reason than "a trained head collapses onto position":
+
+| | canonical | reversed | gap |
+|---|---|---|---|
+| **control** `in_distribution` noul | 0.6048 | 0.5083 | **+9.6 pp** |
+| **control** `in_distribution` score | 0.4240 | 0.3114 | **+11.3 pp** |
+| **control** `in_distribution` pooled AURC | 0.3258 | 0.4074 | **−8.2 pp** |
+| **control** `typed_decisions` noul | 0.5567 | 0.4933 | **+6.3 pp** |
+| candidate `typed_decisions` choice | 0.3417 | 0.2800 | +6.2 pp |
+
+The **zero-shot control shows the larger gaps**. Order sensitivity is therefore a property of the
+base model and the readout, not something training introduces — and in the cells measured here,
+training *reduced* it. Two consequences:
+
+1. **Any single-order number is unreliable**, for the control as much as for a trained arm. Every
+   comparison must use the paired evaluation, or state which order it used.
+2. It **vindicates the reference's design.** The setting reads like defensive plumbing and is
+   load-bearing: without it this project would have compared arms across an uncontrolled
+   presentation-order variable worth up to 11 pp on the same model and the same questions.
+
+Caveat kept explicit: the control scores through `LogprobReadout` and the candidate through the
+trained `option_xattn` head, so those two rows are not the same architecture and the comparison
+*between* them is not like-for-like. The within-row canonical-vs-reversed gaps are unaffected,
+because both sides of each gap use the same readout.
+
+## Full records
+
+Per-question rows (21,792): `E:/2026-AI4S/arms/arm0_probe_v1/out/arm0probe.items.jsonl` (6.7 MB,
+kept off-repository); regenerate with the command in `docs/reproduction_audit.md`.
