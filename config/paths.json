@@ -10,8 +10,11 @@
     "JEVRSI_BACKBONE": "overrides backbone",
     "JEVRSI_SYNTH_CORPUS": "overrides synth_corpus",
     "JEVRSI_REFERENCE_REPO": "overrides reference_repo",
-    "JEVRSI_PUBLISHED_RELEASE": "overrides published_release"
+    "JEVRSI_PUBLISHED_RELEASE": "overrides published_release",
+    "JEVRSI_V1_ENV": "overrides v1_env"
   },
   "published_release": "E:/2026-AI4S/v1_published/v1_2b",
-  "_published_release_why": "Their v1.0 checkpoint ships meta.json (the authoritative spec), verify.json, and code/ -- the snapshot that produced it. The spec in config/arm0_spec.json is copied from that meta.json rather than reconstructed, and scripts/check_arm0_spec.py diffs against it live."
+  "_published_release_why": "Their v1.0 checkpoint ships meta.json (the authoritative spec), verify.json, and code/ -- the snapshot that produced it. The spec in config/arm0_spec.json is copied from that meta.json rather than reconstructed, and scripts/check_arm0_spec.py diffs against it live.",
+  "v1_env": "E:/2026-AI4S/v1_env",
+  "_v1_env_why": "The v1.0 code environment: their release's own rsijev/ modules driven by the checkout's run_arm_lib.py. HEAD is not the revision that produced v1.0 (fit.py 213 -> 559 lines, evaluate.py 297 -> 594, and evaluate.py is PROTECTED), so a run against the checkout is not a reproduction of the release. Build it with scripts/build_v1_env.py, which also verifies that the borrowed driver's imports resolve against the v1.0 modules."
 }

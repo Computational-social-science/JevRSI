@@ -32,6 +32,7 @@ ENV_FOR = {
     "synth_corpus": "JEVRSI_SYNTH_CORPUS",
     "reference_repo": "JEVRSI_REFERENCE_REPO",
     "published_release": "JEVRSI_PUBLISHED_RELEASE",
+    "v1_env": "JEVRSI_V1_ENV",
 }
 
 
@@ -66,6 +67,14 @@ def published_release() -> pathlib.Path:
     checkout's HEAD is not the revision that produced v1.0.
     """
     return _resolve("published_release")
+
+
+def v1_env() -> pathlib.Path:
+    """The v1.0 code environment: their release's modules, driven by the checkout's harness.
+
+    HEAD is not the code that trained v1.0. Build with scripts/build_v1_env.py.
+    """
+    return _resolve("v1_env")
 
 
 def _resolve(key: str) -> pathlib.Path:

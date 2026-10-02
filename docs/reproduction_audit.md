@@ -176,12 +176,50 @@ matters for this number.
 
 ## What this changes about the plan
 
+### The environment is now built, not assembled
+
+`scripts/build_v1_env.py` produces the v1.0 environment and refuses to declare it usable until it
+has checked that the borrowed driver's imports resolve against the v1.0 modules. It also compares
+the two revisions file by file — and building it caught a mistake in this audit's own evidence.
+
+The audit had compared the shared modules through `read_text`, whose universal-newline translation
+turned LF and CRLF into the same string, and concluded **"byte-identical"** from a comparison that
+had silently discarded the difference it was claiming to measure. Compared as raw bytes they differ;
+compared with newlines normalised they are identical. The release snapshot is LF, the checkout is
+CRLF, and the six shared files differ in **nothing but line endings**. The conclusion survives; the
+evidence for it did not, and the builder now reports which of the three cases each file is in:
+
+```
+[OK]   contract.py    d412f9dd98f2  (newline-only difference)
+[OK]   data.py        be9e87c76b8f  (newline-only difference)
+...
+[OK]   every name the driver imports is present in the v1.0 modules
+[OK]   run_arm_lib imports against the v1.0 modules
+```
+
+That is a third variety of the same failure: a comparison that reports agreement because it
+normalised away the thing it was measuring.
+
+### The plan
+
 The claim "RSI-Jev's code, unmodified, with only the backbone changed" was true of the substitute
 statement — the checkout is unmodified — and misleading as a description of the reproduction, since
 the checkout is not the code that produced the thing being reproduced. The plan becomes:
 
 1. **Arm 0 runs in `v1_env`** — the v1.0 modules, the published spec, Qwen3-0.6B. The backbone
    remains the only substantive variable.
+
+   ```bash
+   python scripts/build_v1_env.py            # idempotent; verifies before it declares success
+   cd E:/2026-AI4S/v1_env
+   unset PYTHONPATH
+   export PYTHONPATH="E:/2026-AI4S/v1_env;E:/2026-AI4S/v1_env/scripts"
+   python scripts/release_train.py \
+     --model E:/2026-AI4S/jev_repro/models/Qwen3-0.6B --seed 17 \
+     --spec E:/2026-AI4S/arms/arm0/spec.json \
+     --save-dir E:/2026-AI4S/arms/arm0/checkpoints --out E:/2026-AI4S/arms/arm0/out \
+     --name arm0 --corpus E:/2026-AI4S/corpus_rsijev
+   ```
 2. **The first comparison is `final_loss` against 0.6075**, their published v1.0 endpoint, and
    `n_train_cases` against 6,277. Both are in `meta.json`, so both are checkable without asking
    whether two eval harnesses agree.
