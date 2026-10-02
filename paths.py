@@ -31,6 +31,7 @@ ENV_FOR = {
     "backbone": "JEVRSI_BACKBONE",
     "synth_corpus": "JEVRSI_SYNTH_CORPUS",
     "reference_repo": "JEVRSI_REFERENCE_REPO",
+    "published_release": "JEVRSI_PUBLISHED_RELEASE",
 }
 
 
@@ -55,6 +56,16 @@ def synth_corpus() -> pathlib.Path:
 
 def reference_repo() -> pathlib.Path:
     return _resolve("reference_repo")
+
+
+def published_release() -> pathlib.Path:
+    """Their v1.0 checkpoint's directory: meta.json (the authoritative spec), verify.json, code/.
+
+    Read rather than reconstructed. This project's first spec was rebuilt from the checkout's
+    DEFAULTs plus the release notes, and it was wrong in two load-bearing ways, because the
+    checkout's HEAD is not the revision that produced v1.0.
+    """
+    return _resolve("published_release")
 
 
 def _resolve(key: str) -> pathlib.Path:

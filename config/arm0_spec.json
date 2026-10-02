@@ -1,87 +1,62 @@
 {
-  "_what_this_is": "Arm 0 -- our v1.0. RSI-Jev's recipe on a Qwen3-0.6B backbone, run through THEIR code unmodified.",
-  "_how_this_is_run": "scripts/release_train.py in the reference repository: --model pointed at the local Qwen3-0.6B, --corpus at the output of THEIR scripts/build_synth_corpus.py. No file of theirs is edited. The two adaptations are a model path and a corpus path.",
-  "_field_names_are_theirs": "An earlier version of this file invented field names. run_arm_lib expands spec keys into ArchConfig / FitConfig by keyword, so a name that does not exist is a TypeError, and a name that exists but carries the wrong value trains a different arm than the one described. Every key below was read out of run_arm_lib.DEFAULTS and rsijev.fit.FitConfig, not out of the prose. Five things were wrong before and are recorded rather than quietly fixed: freeze_input_embedding, scorer_fp32_outside_autocast and grad_checkpoint do not exist; options_shuffle and lr_mix do not belong in fit_extra for this arm; and lr_head was 1e-4 against their 1e-3, a factor of ten.",
-
+  "readout": "option_xattn",
+  "objective": "soft_ce",
   "steps": 1500,
   "batch_size": 16,
-  "sources": "synth",
-  "seed": 17,
-
-  "readout": "option_xattn",
-  "readout_layer": -1,
+  "eval_batch_size": 8,
   "max_options": 80,
-  "option_pool": "mean",
-  "residual": false,
+  "lr_head": 0.0001,
+  "lr_base": 5e-06,
+  "diag_only": false,
   "logit_cap": null,
   "head_input_norm": false,
-
-  "freeze_base": false,
-  "_freeze_base": "false is REQUIRED to reproduce v1.0, and it is NOT their default, which is true. Their control table in versions/v1.0.md section 10 records that every frozen variant stalled below the majority baseline: zero-shot on the frozen base's own logprobs 0.3775, frozen tower with a trained readout 0.4850, frozen tower plus the synthetic corpus 0.473-0.483, against a majority baseline of 0.5185. The released v1.0 is 0.662, which no frozen variant reaches. Their words: 'Fine-tuning the tower rather than freezing it, because every frozen variant stalled below the majority baseline whatever the head or the data.'",
-  "_autocast_is_derived": "run_arm_lib computes autocast_bf16 as `not freeze_base`, so bf16 autocast turns on by itself here. It is deliberately NOT written: writing it would create a second source of truth for a value the code already derives, and the two could disagree.",
-
-  "freeze_embeddings": true,
-  "_freeze_embeddings": "their default, read directly by the function. Matches v1.0's 'all tower weights except the frozen input embedding'. Independent of freeze_base: the tower trains while the input embedding does not.",
-  "grad_checkpointing": true,
-  "_grad_checkpointing": "their key name, read directly by run_arm_lib. The earlier `grad_checkpoint` does not exist anywhere in their code.",
-
-  "min_trainable_tower": 100000000,
-  "_min_trainable_tower": "their default, kept. With freeze_base=false it is a floor that catches a tower copied while still carrying requires_grad=False, and run_arm_lib raises afterwards if the tower's bitwise checksum did not move. Lowering it would disable the check that makes a full-parameter claim mean anything.",
-
-  "objective": "soft_ce",
-  "lr_base": 5e-6,
+  "label_smoothing": 0.0,
+  "head_weight_decay": 0.0,
   "base_schedule": "cosine",
-  "lr_head": 1e-3,
-  "_lr_head": "1e-3, their DEFAULTS value. The v1.0 record's prose says 'head 1e-4 constant'; the code says 1e-3. The code is what ran, so the code is what this spec carries, and the discrepancy is recorded rather than resolved by guessing which document is stale.",
-
   "head_schedule": "constant",
+  "seed": 17,
+  "readout_layer": -1,
+  "option_pool": "mean",
+  "layout": "state_first",
+  "freeze_base": false,
+  "sources": "synth",
   "keep_last_k": 3,
+  "residual": false,
   "prior_kl": 0.0,
-
-  "eval_batch_size": 8,
-  "_eval_batch_size_is_ours": "8, against their DEFAULTS of 32. NECESSARY, and the necessity was measured twice before it was believed. A control at freeze_base true completes all three targets at 32 with zero OOM, which on its own looked like proof that 32 was fine; that control removed the very thing that makes 32 fail. The necessity test keeps the real arm's condition -- freeze_base false, so the 8.88 GiB optimiser state is resident -- and at eval_batch_size 32 it dies with `torch.AcceleratorError: CUDA error: out of memory` and writes nothing, while training itself completed and their own `tower moved: max |dw| = 5.007e-06` guard had already fired. The fault is the INTERACTION: neither condition alone triggers it, and both are required. It changes how many questions are scored per forward pass and nothing else -- not what is scored, not the metric, not the training, not the model.",
-
-  "arch_extra": {
-    "xattn_heads": 4
+  "freeze_embeddings": true,
+  "grad_checkpointing": true,
+  "eval_dtype": "native",
+  "repeat_eval": null,
+  "option_order": "shuffled",
+  "eval_option_orders": [
+    "canonical",
+    "reversed"
+  ],
+  "arch_extra": {},
+  "fit_extra": {},
+  "rl_extra": {},
+  "min_trainable_tower": 100000000,
+  "_what_this_is": "Arm 0 -- our v1.0. RSI-Jev's recipe on a Qwen3-0.6B backbone, run through THEIR code unmodified.",
+  "_provenance": {
+    "spec_source": "shgao/rsi-jev-v1.0-qwen3.5-2b :: meta.json :: spec",
+    "not_reconstructed": "This spec is COPIED VERBATIM from the checkpoint their v1.0 release ships, not rebuilt from DEFAULTs plus prose. An earlier version of this file was a reconstruction and it was wrong: it set lr_head to 1e-3, reasoning that the code's DEFAULTS outranks the record's prose, and that reasoning was invalid because the HEAD checkout is not the code that produced v1.0. The published spec says 1e-4, so the prose was right and the reconstruction was wrong.",
+    "adaptations": {
+      "eval_batch_size": "theirs=32 -> ours=8, forced by the OOM interaction measured on this 12 GB card"
+    },
+    "their_spec_sha_note": "compare with scripts/check_arm0_spec.py, which diffs against this file live"
   },
-  "_xattn_heads": "their ArchConfig default. It is NOT among the 8 keys run_arm_lib names explicitly, so at the top level it would be ignored; here it reaches ArchConfig through the documented **kwargs route.",
-
-  "fit_extra": {
-    "weight_decay": 0.0,
-    "warmup": 0.05,
-    "grad_clip": 1.0,
-    "cal_method": "none",
-    "lower_layers_n": 0,
-    "log_every": 50
-  },
-  "_fit_extra_note": "Every FitConfig field run_arm_lib does NOT name explicitly. An unknown name here is a TypeError at construction, which is the good failure mode. cal_method is none so the checkpoint is exactly the model as trained and uncalibrated -- their released v2.0 and v2.1 use oof_head_scorefloor, and arm 0 is v1.0, which predates the confidence head. lower_layers_n is 0 because that knob belongs to their v2.1. NOTE: notes live HERE, at the top level, and never inside arch_extra or fit_extra -- those are splatted as **kwargs into a dataclass constructor, so an underscore-prefixed key there is an unexpected keyword argument, not a comment. That mistake shipped and surfaced only when the arm ran.",
-
-  "_reference": {
-    "repo": "https://github.com/Shanghua-Gao/RSI-Jev",
-    "record": "versions/v1.0.md section 2, and the control table in section 10",
-    "their_base": "Qwen3.5-2B-Base",
-    "their_hardware": "one H100 80 GB, ~13 min at 2B",
-    "their_held_out_top1": 0.662,
-    "their_jev_reference": 0.727,
-    "their_majority_baseline": 0.5185,
-    "_not_comparable": "Their numbers came from an H100 80 GB on a pinned torch 2.7.1+cu128 stack. Recorded for orientation; never differenced against ours."
-  },
-
-  "_ours": {
-    "backbone": "Qwen3-0.6B, local, unmodified",
-    "corpus": "E:/2026-AI4S/corpus_rsijev -- built by THEIR scripts/build_synth_corpus.py: 6,977 cases / 24,320 questions, plus 437 adjacent-domain cases held aside so an arm can show the result does not depend on near-workflow data",
-    "seed_order": "17, then 29 and 43. Theirs judges the mean of three and fixed 17 as primary in advance; that order is kept."
-  },
-
-  "_host_feasibility_measured_2026_09_30": {
-    "_where": "docs/arm0_host_feasibility.md, with the numbers below",
-    "peak_vram": "11,872 / 12,282 MiB = 96%, flat across a real 3-step run. It fits; 410 MiB is not a margin.",
-    "why_it_fits": "rsijev/fit.py keeps weights fp32 and runs the forward under bf16 autocast, which run_arm_lib derives as `not freeze_base`. Their own comment records that fp32 activations at batch 16 used 79 GB. Same saving here.",
-    "trainable": "596.0 M with freeze_embeddings true (751.6 M total, 155.6 M embedding). min_trainable_tower = 100 M is satisfied six times over.",
-    "readout_tap": "readout_layer -1 lands on layer 27 of 28, and every layer is full_attention. Theirs lands on layer 23 of 24, also full_attention. SAME attention type, which is what makes running their code on our backbone a reproduction rather than a rewrite.",
-    "host": "1 x RTX 4070 12,282 MiB; 32 logical cores; 127.7 GiB RAM, 99.5 GiB available. Their reference ran on an H100 80 GB.",
-    "if_it_OOMs": "batch_size is the first lever and it is THEIR number, set for an 80 GB card. A CPU-resident fp32 optimiser master is the second and this host has the RAM for it -- but that is an adaptation and would be recorded as one rather than slipped in."
-  },
-
-  "_known_blocker_fixed": "An earlier version of this spec carried notes INSIDE arch_extra, e.g. `_xattn_heads`. Both extras are splatted as **kwargs into a dataclass constructor, so an underscore does not make a key a comment -- it makes it an unexpected keyword argument, and the run died with TypeError after the 2.28 GB model had loaded. Notes live at the top level now, and scripts/check_arm0_spec.py fails on an underscore key inside either extra."
+  "_their_meta": {
+    "base_model": "Qwen/Qwen3.5-2B-Base",
+    "tapped_layer": 23,
+    "tapped_layer_type": "full_attention (final, normed)",
+    "linear_attn_kernel": "fla-0.5.2/torch-2.7.1+cu128",
+    "code_version": "unknown",
+    "train_seconds": 908,
+    "n_train_cases": 6277,
+    "final_loss": 0.6074753403663635,
+    "tower_keys": 319,
+    "excluded": [
+      "embed_tokens (frozen; taken from base_model)"
+    ]
+  }
 }

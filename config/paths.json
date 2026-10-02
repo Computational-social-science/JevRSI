@@ -9,6 +9,9 @@
     "JEVRSI_SUBJECT": "overrides subject",
     "JEVRSI_BACKBONE": "overrides backbone",
     "JEVRSI_SYNTH_CORPUS": "overrides synth_corpus",
-    "JEVRSI_REFERENCE_REPO": "overrides reference_repo"
-  }
+    "JEVRSI_REFERENCE_REPO": "overrides reference_repo",
+    "JEVRSI_PUBLISHED_RELEASE": "overrides published_release"
+  },
+  "published_release": "E:/2026-AI4S/v1_published/v1_2b",
+  "_published_release_why": "Their v1.0 checkpoint ships meta.json (the authoritative spec), verify.json, and code/ -- the snapshot that produced it. The spec in config/arm0_spec.json is copied from that meta.json rather than reconstructed, and scripts/check_arm0_spec.py diffs against it live."
 }

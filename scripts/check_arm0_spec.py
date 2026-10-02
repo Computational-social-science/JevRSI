@@ -61,6 +61,21 @@ from paths import reference_repo, require  # noqa: E402
 
 SPEC = ROOT / "config" / "arm0_spec.json"
 
+# The authoritative spec, shipped inside their v1.0 checkpoint. When this file is reachable, the
+# spec is diffed against it directly and the literal list below becomes a fallback for an
+# environment without the download. Reading the published spec rather than trusting a
+# reconstruction is the whole point: the first version of this file WAS a reconstruction and it was
+# wrong twice, in ways no amount of care over literals would have caught.
+PUBLISHED_META = ("published_release", "meta.json")
+
+# Differences from the published spec that this project has deliberately made. Every entry needs a
+# measurement behind it, because an unexplained deviation from a reference is a bug with a comment.
+ALLOWED_DEVIATIONS = {
+    "eval_batch_size": ("theirs 32 -> ours 8. Forced by an OOM that needs BOTH full-parameter "
+                        "training (8.88 GiB optimiser state resident) AND evaluation at 32; neither "
+                        "condition alone reproduces it. Measured in docs/arm0_probe_evidence.md."),
+}
+
 # Copied from run_arm_lib.run_arm by reading it, and re-derived at run time when their checkout is
 # reachable. The literals are here so this validator still works if the checkout is absent, and
 # `_cross_check` says so loudly rather than letting the literals be trusted silently.
@@ -80,9 +95,28 @@ LOAD_BEARING = [
     ("batch_size", 16, "their v1.0 record: batch 16."),
     ("lr_base", 5e-6, "their v1.0 record: tower 5e-6."),
     ("base_schedule", "cosine", "their v1.0 record: tower 5e-6 cosine."),
-    ("lr_head", 1e-3, "their DEFAULTS. The v1.0 prose says 1e-4; the code says 1e-3, and the code "
-                      "is what ran. Recorded in the spec rather than silently reconciled."),
+    # This entry used to read `1e-3`, on the reasoning that "the code says 1e-3 and the code is what
+    # ran". Both halves were wrong. The published meta.json says 1e-4, and the reason the checkout
+    # disagrees is that the checkout's HEAD is not the revision that produced v1.0 -- fit.py has
+    # grown from 213 to 559 lines since. Reading a DEFAULT out of a later revision and calling it
+    # "what ran" is the same class of error as reading a step time off a run whose conditions were
+    # not the ones being asked about.
+    ("lr_head", 1e-4, "their v1.0 record, and their published meta.json: head 1e-4 constant. Their "
+                      "HEAD DEFAULTS says 1e-3, which is a later revision's default, not v1.0's "
+                      "setting."),
     ("head_schedule", "constant", "their v1.0 record: head 1e-4 constant."),
+    # The one omission that would have changed the run rather than only mis-documenting it. Without
+    # this key the encoder enumerates options in corpus order, and their own record names that
+    # failure: "a causal encoder shows option k only options 1..k-1, and a head trained on a fixed
+    # order collapses onto position -- one early run picked the last option on 800 of 800 score
+    # questions."
+    ("option_order", "shuffled",
+     "their v1.0 setting, from their published meta.json. Their EncodeConfig default is 'canonical' "
+     "and their release overrides it. Omitting this key trains a position-collapsed head, which is "
+     "the failure their record documents at 800/800 score questions."),
+    ("eval_option_orders", ["canonical", "reversed"],
+     "their v1.0 setting. Evaluation is run under both option orders, which is how a position "
+     "artefact would show up as a gap between the two rather than as an unexplained score."),
     ("readout", "option_xattn", "the cross-attention scorer, which is the head their v1.0 trains."),
     ("sources", "synth", "the distillation corpus alone. Their v2.0 mixes in the benchmark's own "
                          "train split; that is their later release, not this one."),
@@ -122,6 +156,30 @@ def their_modules():
         print(f"[warn] their checkout not usable ({type(e).__name__}: {str(e)[:80]}). "
               f"Checking against the literals in this file, which were read from run_arm_lib.")
         return None, None, None
+
+
+def _load_published_spec():
+    """Their v1.0 checkpoint's own spec, or (None, [reason]).
+
+    This is the authoritative artefact: the file the release shipped beside its weights, written by
+    the code that produced them. Everything this project could reconstruct is downstream of it.
+    """
+    try:
+        import paths
+        root = paths.published_release()
+    except Exception as e:                                       # noqa: BLE001
+        return None, [f"published_release not configured ({type(e).__name__})"]
+    meta = pathlib.Path(root) / PUBLISHED_META[1]
+    if not meta.is_file():
+        return None, [f"{meta} not present; run the download in docs/arm0_probe_evidence.md"]
+    try:
+        d = json.loads(meta.read_text(encoding="utf-8"))
+    except Exception as e:                                       # noqa: BLE001
+        return None, [f"{meta} unreadable ({type(e).__name__}: {str(e)[:60]})"]
+    spec = d.get("spec")
+    if not isinstance(spec, dict):
+        return None, [f"{meta} has no 'spec' object"]
+    return spec, []
 
 
 def check(spec: dict) -> tuple[int, int, list[str]]:
@@ -204,6 +262,37 @@ def check(spec: dict) -> tuple[int, int, list[str]]:
             lines.append(f"             {why}")
     if not any("[FAIL] LOAD-BEARING" in l for l in lines):
         lines.append(f"    [PASS] load-bearing {len(LOAD_BEARING)} values match their v1.0 record")
+
+    # 3b. THE STRONGEST CHECK: diff against the spec their v1.0 checkpoint actually ships.
+    # A reconstruction is only ever as good as the sources it was built from, and this project's
+    # first reconstruction was wrong twice: lr_head was taken from the checkout's DEFAULTS as if the
+    # checkout were the code that produced v1.0, and `option_order` was omitted entirely so the run
+    # would have trained canonical-ordered options -- the exact configuration their own record warns
+    # collapses onto position. Diffing against meta.json cannot make either mistake.
+    published, pub_lines = _load_published_spec()
+    if published is None:
+        checks += 1
+        lines.append(f"    [SKIP] published   {pub_lines[0] if pub_lines else 'not available'}")
+    else:
+        actual = {k: v for k, v in spec.items() if not k.startswith("_")}
+        for k in sorted(set(published) | set(actual)):
+            checks += 1
+            tv, mv = published.get(k, "<absent>"), actual.get(k, "<absent>")
+            if tv == mv:
+                continue
+            if k in ALLOWED_DEVIATIONS:
+                lines.append(f"    [PASS] deviation   {k}: theirs {tv!r} -> ours {mv!r}")
+                lines.append(f"             {ALLOWED_DEVIATIONS[k]}")
+            else:
+                failures += 1
+                lines.append(f"    [FAIL] DRIFT       {k}: published {tv!r} but ours is {mv!r}")
+                lines.append(f"             Our spec must equal theirs except for a listed deviation. "
+                             f"Either copy theirs, or add an ALLOWED_DEVIATIONS entry with the "
+                             f"measurement that justifies it.")
+        if not any("[FAIL] DRIFT" in l for l in lines):
+            n_dev = len(ALLOWED_DEVIATIONS)
+            lines.append(f"    [PASS] published   spec matches meta.json field for field, except "
+                         f"{n_dev} recorded deviation(s)")
 
     # 4. do not pin a derived value
     for k, where in (("autocast_bf16", "top level"),):
