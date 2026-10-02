@@ -147,12 +147,20 @@ not asserted.
 | `meta.json` top-level keys | 11 | 11, identical set |
 
 The last two rows are the honest limits of this reproduction and are recorded rather than glossed.
-`tower_keys` differs because Qwen3.5 and Qwen3 do not have the same module set. The attention kernel
-differs because FLA is not installed here, so their linear-attention layers run through PyTorch's
-reference path. **A `linear_attn_kernel` difference is a difference in the numerics of every
-linear-attention layer**, so a checkpoint from this host is not bit-comparable to theirs, and the
-comparison has to rest on `final_loss` and on the scored metrics at a stated tolerance rather than on
-weight agreement.
+`tower_keys` differs because Qwen3.5 and Qwen3 do not have the same module set.
+
+**`linear_attn_kernel` is a recorded difference that turns out not to apply.** It was written up as
+"a difference in the numerics of every linear-attention layer", which would be true if this run had
+any. It does not: **Qwen3-0.6B's config carries no `layer_types` field**, so all 28 layers are full
+attention and FLA has nothing to accelerate. Their 2B is a hybrid and needs it; their `fla-0.5.2`
+entry describes their run, not a discrepancy in ours. The row is kept because the same assumption
+would silently matter the moment a hybrid backbone is substituted, but for arm 0 the kernel
+difference is **zero**.
+
+What does make weight-level comparison impossible is the backbone itself — Qwen3 vs Qwen3.5, 28
+layers vs 24, 309 tower tensors vs 319, a different hidden size. That is the deliberate independent
+variable of the whole exercise, so the comparison rests on `final_loss` and on scored metrics
+instead, and `verify.json` supplies the numbers to score against.
 
 ### `eval_option_orders` is not decoration
 
@@ -171,6 +179,48 @@ which is the argument for reading the published spec rather than a description o
 The zero-shot control reproduces too: `typed_decisions` AURC **0.4919**, identical to the value
 measured through the checkout's modules, so the two code revisions agree on the evaluation path that
 matters for this number.
+
+## The numbers arm 0 is measured against
+
+Their release states its own verification in `verify.json`, in a metric this project had never
+computed:
+
+| | theirs (v1.0, Qwen3.5-2B) | ours, zero-shot (Qwen3-0.6B) | headroom |
+|---|---|---|---|
+| `typed_decisions` pooled top-1 | **0.6525** (n=2000) | **0.4025** | **+0.2500** |
+| `mmlu_pro_1k` pooled top-1 | **0.3550** (n=1000) | **0.2110** | **+0.1440** |
+
+The harness writes `pooled_aurc`, `min_decision_score` and per-type accuracy — not `pooled_top1`. So
+the one number their release publishes for verification was not being computed here at all, and the
+two sides had **no metric in common**. The rows it writes carry `pred` and `gold`, so
+`measurement/report_from_items.py` recovers it without touching the PROTECTED harness.
+
+The zero-shot rows are the anchors: 0.4025 is what an untrained 0.6B scores on the task, measured
+through their own evaluation path.
+
+**These are not a target to be matched.** Their number comes from a 2B backbone more than three times
+larger; ours is the deliberate independent variable. That headroom is what arm 0 is meant to consume,
+and *how much of it the loop consumes* is the curve this project exists to produce.
+
+### The option-order gap looks like a learning signal
+
+Their v1.0 scores **identically under both option orders**:
+
+| | canonical | reversed | gap |
+|---|---|---|---|
+| their v1.0 `typed_decisions` | 0.6525 | 0.6525 | **0.0 pp** |
+| our zero-shot control | 0.4025 | 0.3715 | 3.1 pp |
+| our 1-step candidate | 0.3845 | 0.3625 | 2.2 pp |
+
+A model that selects the option whose *content* is right scores the same whichever way the options
+are presented; one that has learned to select a *position* does not. Their release reporting a zero
+gap therefore says something about what 1,500 steps taught it, and the gap becomes a readable
+quantity rather than a nuisance: it should **fall toward zero as the loop runs**, and a gap that stays
+open is evidence the readout is still tracking presentation.
+
+This is a reading off one pair of numbers and is labelled as a hypothesis. It becomes testable when
+arm 0 finishes — if the gap closes with training on our own backbone, the reading holds; if it does
+not, the interpretation is wrong and the gap is just a property of this backbone.
 
 ---
 
