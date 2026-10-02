@@ -66,6 +66,30 @@ trained `option_xattn` head, so those two rows are not the same architecture and
 *between* them is not like-for-like. The within-row canonical-vs-reversed gaps are unaffected,
 because both sides of each gap use the same readout.
 
+## Method check: the order gap is not an index artefact
+
+Before reading anything into the canonical-vs-reversed gaps, the two sides have to be shown to be
+comparable. They are, and the check is in the release's own code rather than in an assumption:
+
+- `evaluate.py`'s `predict()` calls `unpermute_logits(model(**batch), batch["option_perm"], ...)` —
+  the same inverse mapping `fit.py` applies before its loss. So every prediction is expressed in the
+  **canonical** index space regardless of the order the model was shown.
+- `score_predictions` takes the gold from `gold_label(q, c.gold[q.key])` — also canonical.
+- The records store `pred` and `gold` as **option names** (`pred='neutral_report'`,
+  `gold='dry_sarcastic'`), not indices, so the comparison cannot silently pair one space against the
+  other.
+
+Therefore the only thing that differs between a canonical and a reversed evaluation is **the order in
+which the model saw the options**. That is what makes the gap interpretable as a position sensitivity
+rather than as a bookkeeping difference, and it is the premise the learning-signal hypothesis in
+`docs/reproduction_audit.md` rests on.
+
+What the check does **not** establish: that `pooled_top1` computed from these rows uses byte-identical
+tie-breaking to theirs. Their `verify.json` reports it but ships no per-question rows to compare
+against, so the definition is matched by construction (`pred == gold`) and not verified against their
+implementation. Numbers in the 0.65 range carry no exact ties, so the risk is small and is recorded
+rather than dismissed.
+
 ## Full records
 
 Per-question rows (21,792): `E:/2026-AI4S/arms/arm0_probe_v1/out/arm0probe.items.jsonl` (6.7 MB,
