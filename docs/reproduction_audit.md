@@ -104,7 +104,7 @@ published spec field for field, with one recorded deviation:
 
 | key | theirs | ours | why |
 |---|---|---|---|
-| `eval_batch_size` | 32 | 8 | an OOM that requires *both* full-parameter training (8.88 GiB optimizer state resident) *and* evaluation at 32 — neither condition alone reproduces it |
+| `eval_batch_size` | 32 | 8 | **not** the OOM it was first justified by — that came from a contended run, now withdrawn; measured idle, 32 does not OOM but sits at 94% of VRAM and takes >61 min against 8's 15.6. See [eval_batch_size_correction.md](eval_batch_size_correction.md) |
 
 **`check_arm0_spec.py` now diffs the spec against the published `meta.json` live.** This is the
 check that was structurally unable to exist while the spec was a reconstruction. Any difference from
@@ -127,6 +127,50 @@ two revisions.
 
 The v1.0 snapshot has no `run_arm_lib.py` of its own. Borrowing the checkout's driver is a real
 dependency and is recorded as one, not passed off as "their code unmodified".
+
+---
+
+## Verification — the corrected pipeline, executed
+
+A 1-step run through the v1.0 modules with the published spec, on Qwen3-0.6B, writes a checkpoint
+whose `meta.json` matches theirs **key for key** — all 11 top-level keys, same set — and whose
+`n_train_cases` is **6277 against their 6277**. That is the corpus and the split aligned end to end,
+not asserted.
+
+| | theirs (v1.0, Qwen3.5-2B) | ours (v1.0 code, Qwen3-0.6B) |
+|---|---|---|
+| `n_train_cases` | 6,277 | **6,277** |
+| `tapped_layer_type` | full_attention (final, normed) | full_attention (final, normed) |
+| `tapped_layer` | 23 of 24 | 27 of 28 |
+| `tower_keys` | 319 | 309 |
+| `linear_attn_kernel` | **fla-0.5.2 / torch-2.7.1+cu128** | **torch-reference / torch-2.13.0+cu126** |
+| `meta.json` top-level keys | 11 | 11, identical set |
+
+The last two rows are the honest limits of this reproduction and are recorded rather than glossed.
+`tower_keys` differs because Qwen3.5 and Qwen3 do not have the same module set. The attention kernel
+differs because FLA is not installed here, so their linear-attention layers run through PyTorch's
+reference path. **A `linear_attn_kernel` difference is a difference in the numerics of every
+linear-attention layer**, so a checkpoint from this host is not bit-comparable to theirs, and the
+comparison has to rest on `final_loss` and on the scored metrics at a stated tolerance rather than on
+weight agreement.
+
+### `eval_option_orders` is not decoration
+
+Scoring the candidate under both orders, one step in:
+
+| target | canonical | reversed | gap |
+|---|---|---|---|
+| **choice** | 0.3417 | **0.2800** | **−6.2 pp** |
+| score | 0.3438 | 0.3237 | −2.0 pp |
+| noul | 0.4817 | 0.4967 | +1.5 pp |
+
+A 6.2 pp swing on `choice` between two orderings of the same options is a position artefact of the
+size the reference warns about. This setting mattered and its absence would have gone unnoticed —
+which is the argument for reading the published spec rather than a description of it.
+
+The zero-shot control reproduces too: `typed_decisions` AURC **0.4919**, identical to the value
+measured through the checkout's modules, so the two code revisions agree on the evaluation path that
+matters for this number.
 
 ---
 

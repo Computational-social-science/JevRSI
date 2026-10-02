@@ -197,6 +197,14 @@ cannot report on the phenomenon.
 **The measurement that settles it** keeps the real arm's condition — `freeze_base: false`, so the
 optimiser state is resident — and varies only the key under test:
 
+> **RETRACTED 2026-10-02 — see [`eval_batch_size_correction.md`](eval_batch_size_correction.md).**
+> The table below and the conclusion drawn from it are withdrawn. The OOM came from the same
+> contended run whose `train_seconds` [`arm0_probe_evidence.md`](arm0_probe_evidence.md) discards;
+> an invalidated run cannot yield one number kept and another discarded. Re-measured on an idle card,
+> `eval_batch_size: 32` does **not** OOM — it occupies 94% of VRAM (11,583 / 12,282 MiB) and takes
+> >61 minutes where 8 takes 15.6. **The setting stays 8; the reason changes** from "necessary"
+> to "kept for headroom and speed". The text below is kept as written.
+
 | | `eval_batch_size: 32` | `eval_batch_size: 8` |
 |---|---|---|
 | **`freeze_base: true`** | completes, zero OOM | completes, zero OOM |

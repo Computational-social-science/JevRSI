@@ -41,7 +41,7 @@
     "spec_source": "shgao/rsi-jev-v1.0-qwen3.5-2b :: meta.json :: spec",
     "not_reconstructed": "This spec is COPIED VERBATIM from the checkpoint their v1.0 release ships, not rebuilt from DEFAULTs plus prose. An earlier version of this file was a reconstruction and it was wrong: it set lr_head to 1e-3, reasoning that the code's DEFAULTS outranks the record's prose, and that reasoning was invalid because the HEAD checkout is not the code that produced v1.0. The published spec says 1e-4, so the prose was right and the reconstruction was wrong.",
     "adaptations": {
-      "eval_batch_size": "theirs=32 -> ours=8, forced by the OOM interaction measured on this 12 GB card"
+      "eval_batch_size": "theirs=32 -> ours=8. NOT the OOM it was first justified by: that came from a run sharing the card with a 30-step job, and the same run's train_seconds is already discarded for that contention -- one invalidated run cannot yield one number kept and another discarded. Re-measured on an idle card with the v1.0 modules: 32 does not OOM. It does sit at 11,583/12,282 MiB = 94% and take >61 min against 8's 15.6, so 8 is kept for headroom and speed, not for correctness. Evaluation-only. See docs/eval_batch_size_correction.md."
     },
     "their_spec_sha_note": "compare with scripts/check_arm0_spec.py, which diffs against this file live"
   },

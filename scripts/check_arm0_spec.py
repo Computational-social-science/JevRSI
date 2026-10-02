@@ -71,9 +71,15 @@ PUBLISHED_META = ("published_release", "meta.json")
 # Differences from the published spec that this project has deliberately made. Every entry needs a
 # measurement behind it, because an unexplained deviation from a reference is a bug with a comment.
 ALLOWED_DEVIATIONS = {
-    "eval_batch_size": ("theirs 32 -> ours 8. Forced by an OOM that needs BOTH full-parameter "
-                        "training (8.88 GiB optimiser state resident) AND evaluation at 32; neither "
-                        "condition alone reproduces it. Measured in docs/arm0_probe_evidence.md."),
+    "eval_batch_size": ("theirs 32 -> ours 8. NOT the OOM it was first justified by: that OOM came "
+                        "from a run sharing the card with a 30-step job, and this file's own note "
+                        "discards the SAME run's train_seconds for exactly that contention -- one "
+                        "contaminated run cannot yield one number kept and another discarded. "
+                        "Re-measured on an idle card (v1.0 modules, published spec): 32 does not "
+                        "OOM. It does, however, sit at 11,583 / 12,282 MiB = 94% and spend over 61 "
+                        "minutes on the evaluation that 8 finishes in 15.6, because at 94% of "
+                        "capacity the allocator thrashes. 8 is kept for headroom and speed. See "
+                        "docs/eval_batch_size_correction.md."),
 }
 
 # Copied from run_arm_lib.run_arm by reading it, and re-derived at run time when their checkout is
@@ -121,23 +127,30 @@ LOAD_BEARING = [
     ("sources", "synth", "the distillation corpus alone. Their v2.0 mixes in the benchmark's own "
                          "train split; that is their later release, not this one."),
     ("seed", 17, "their primary seed, fixed in advance."),
-    # An adaptation, not their value, and the necessity is MEASURED -- twice, because the first
-    # attempt at measuring it destroyed the condition that causes the fault.
+    # An adaptation, not their value. The reason has been rewritten once already, because the first
+    # reason did not survive re-testing.
     #
-    # freeze_base true  + eval 32  -> completes, zero OOM.  This looked like proof 32 was fine, and
-    #                                  it is the reason an earlier commit retracted the claim.
-    # freeze_base false + eval 32  -> torch.AcceleratorError: CUDA error: out of memory, 0 files.
+    # WHAT WAS CLAIMED: "freeze_base false + eval 32 -> CUDA OOM, 0 files", so the fault is the
+    # interaction of full-parameter training with a large evaluation batch.
     #
-    # Both conditions are required; neither alone triggers it. The "control" removed the 8.88 GiB
-    # optimiser state, which is half the fault, so it could only return a false all-clear. The
-    # reason is recorded this precisely because a vague one would let the next reader "restore" 32
-    # against a story that does not hold.
-    ("eval_batch_size", 8, "OURS, necessary. Their default 32 OOMs on this card WHEN full-parameter "
-                           "training has left the 8.88 GiB optimiser state resident; the same 32 "
-                           "completes when the tower is frozen. The fault is the interaction, and "
-                           "this key is the only lever for it that does not touch the recipe. "
-                           "Evaluation-only: it changes how many questions are scored per forward "
-                           "pass and nothing else."),
+    # WHY THAT IS WITHDRAWN: the run that produced the OOM shared the card with a 30-step job --
+    # the same run whose train_seconds (3207, or 107 s/step) this project already discards for
+    # contention. One contaminated run cannot yield one number kept and another discarded, and the
+    # earlier commit kept the OOM while throwing away the duration.
+    #
+    # WHAT WAS MEASURED ON AN IDLE CARD (v1.0 modules, published spec, eval_batch_size 32):
+    # training completed and the evaluation ran 61+ minutes without an OOM, killed by hand. So 32
+    # does not OOM here -- but it sits at 11,583 / 12,282 MiB = 94% and needs >61 minutes where 8
+    # needs 15.6. At 94% of capacity the allocator thrashes, which is the whole of the slowdown.
+    #
+    # 8 IS KEPT ANYWAY, for headroom and for speed, and because it is evaluation-only: it changes
+    # how many questions are scored per forward pass and nothing else -- not what is scored, not the
+    # metric, not the training, not the model. It is NOT kept because 32 is impossible.
+    ("eval_batch_size", 8, "OURS, kept for headroom and speed, not for correctness. Their 32 does "
+                           "not OOM on an idle card but occupies 94% of this GPU and takes >61 "
+                           "minutes against 8's 15.6, so the allocator thrashes. Evaluation-only: "
+                           "it changes how many questions are scored per forward pass and nothing "
+                           "else. See docs/eval_batch_size_correction.md."),
 ]
 
 

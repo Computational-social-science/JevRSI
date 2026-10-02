@@ -77,6 +77,13 @@ times — reading a number off a run whose conditions were not the ones being as
 
 ## eval_batch_size: 8, and why the first two explanations were both wrong
 
+> **RETRACTED 2026-10-02 — see [`eval_batch_size_correction.md`](eval_batch_size_correction.md).**
+> The claim below is withdrawn. The OOM it rests on came from the same contended run whose
+> `train_seconds` this document discards four paragraphs earlier; one invalidated run cannot yield
+> one number kept and another discarded. Re-measured on an idle card, `eval_batch_size: 32` does
+> **not** OOM — it occupies 94% of VRAM and takes >61 minutes against 8's 15.6. The setting stays 8;
+> the reason changes from impossibility to headroom and speed. The text below is kept as written.
+
 | | `eval_batch_size: 32` | `eval_batch_size: 8` |
 |---|---|---|
 | **`freeze_base: true`** | completes, zero OOM | completes, zero OOM |
