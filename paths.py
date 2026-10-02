@@ -33,6 +33,7 @@ ENV_FOR = {
     "reference_repo": "JEVRSI_REFERENCE_REPO",
     "published_release": "JEVRSI_PUBLISHED_RELEASE",
     "v1_env": "JEVRSI_V1_ENV",
+    "bootloops": "JEVRSI_BOOTLOOPS",
 }
 
 
@@ -67,6 +68,15 @@ def published_release() -> pathlib.Path:
     checkout's HEAD is not the revision that produced v1.0.
     """
     return _resolve("published_release")
+
+
+def bootloops() -> pathlib.Path:
+    """The BootLoops clone: the toolkit, with the protocols repo beside it as its README requires.
+
+    The protocols are the project's working discipline. The toolkit packages are mathematical
+    physics instruments and do not apply to this project -- see docs/BOOTLOOPS.md.
+    """
+    return _resolve("bootloops")
 
 
 def v1_env() -> pathlib.Path:
