@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JevRSI — pipeline health</title>
+<style>
+  /* Works both inside the Hermes frame (which injects these vars) and opened standalone from disk
+     (fallbacks). No background/font override when framed; a page opened directly needs its own. */
+  :root{
+    --bg: var(--background, #0b0e13);
+    --fg: var(--foreground, #e6e9ef);
+    --muted: var(--muted-foreground, #8b93a7);
+    --card: var(--card, #151a22);
+    --border: var(--border, #232a36);
+    --accent: var(--accent, #7aa2f7);
+    --ok:#3fb950; --warn:#d29922; --fail:#f85149; --skip:#6e7681;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);
+    font:13px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{padding:14px 16px 28px;max-width:1180px}
+  h1{font-size:15px;margin:0 0 2px;letter-spacing:.2px}
+  h2{font-size:11px;margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.9px;font-weight:600}
+  .sub{color:var(--muted);font-size:11.5px;margin-bottom:12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px}
+  .grid{display:grid;gap:10px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:860px){.g2,.g3{grid-template-columns:1fr}}
+
+  /* verdict banner — the one thing a reader should see first */
+  .banner{display:flex;align-items:center;gap:12px;border-radius:8px;padding:12px 16px;margin-bottom:12px;
+    border:1px solid var(--border);font-weight:600;font-size:14px}
+  .banner .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+  .v-OK{background:rgba(63,185,80,.10);border-color:rgba(63,185,80,.45)}
+  .v-WARN{background:rgba(210,153,34,.10);border-color:rgba(210,153,34,.45)}
+  .v-FAIL{background:rgba(248,81,73,.11);border-color:rgba(248,81,73,.5)}
+  .banner .why{font-weight:400;color:var(--muted);font-size:11.5px}
+
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:12.5px}
+  .kv .k{color:var(--muted)}
+  .kv .v{font-family:var(--mono);font-size:12px;text-align:right}
+
+  .pill{display:inline-block;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:600;
+    border:1px solid var(--border);font-family:var(--mono)}
+  .p-run{color:var(--ok);border-color:rgba(63,185,80,.5);background:rgba(63,185,80,.10)}
+  .p-warn{color:var(--warn);border-color:rgba(210,153,34,.5);background:rgba(210,153,34,.10)}
+  .p-fail{color:var(--fail);border-color:rgba(248,81,73,.5);background:rgba(248,81,73,.10)}
+  .p-idle{color:var(--muted)}
+
+  .bar{height:7px;border-radius:5px;background:var(--border);overflow:hidden;margin:7px 0 4px}
+  .bar > i{display:block;height:100%;background:var(--accent)}
+  .bar.mid > i{background:var(--warn)}
+  .bar.hot > i{background:var(--fail)}
+
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{text-align:left;color:var(--muted);font-weight:600;font-size:10.5px;text-transform:uppercase;
+     letter-spacing:.7px;padding:4px 8px 4px 0;border-bottom:1px solid var(--border)}
+  td{padding:4px 8px 4px 0;border-bottom:1px solid rgba(35,42,54,.5);font-family:var(--mono);font-size:11.5px}
+  td.name{font-family:inherit}
+
+  .check{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid rgba(35,42,54,.45);font-size:12px}
+  .check:last-child{border-bottom:none}
+  .check .st{flex:0 0 52px;font-family:var(--mono);font-size:10.5px;font-weight:700;padding-top:1px}
+  .s-OK{color:var(--ok)} .s-WARN{color:var(--warn)} .s-FAIL{color:var(--fail)} .s-SKIP{color:var(--skip)}
+  .check .bd{flex:1;min-width:0}
+  .check .detail{color:var(--fg);word-break:break-word}
+  .check .why{color:var(--muted);font-size:11px;margin-top:1px}
+  .tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+  .tab{cursor:pointer;padding:3px 10px;border:1px solid var(--border);border-radius:6px;
+       font-size:11px;color:var(--muted);background:transparent}
+  .tab[aria-selected=true]{color:var(--fg);border-color:var(--accent)}
+  .foot{color:var(--muted);font-size:11px;margin-top:12px;line-height:1.7}
+  .foot code{font-family:var(--mono);font-size:10.5px;background:var(--card);padding:1px 4px;border-radius:3px}
+  .stale{color:var(--warn)}
+  .missing{color:var(--fail)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>JevRSI — pipeline health</h1>
+  <div class="sub" id="sub">loading state…</div>
+  <div id="banner" class="banner v-FAIL"><span class="dot"></span><span id="bannerText">no state loaded</span></div>
+  <div id="app"></div>
+  <div class="foot" id="foot"></div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------------------------
+// State loading. `fetch()` is blocked on file:// documents, so state arrives as a JS global via a
+// <script src>. Polling re-injects the tag with a cache-buster AND removes the previous element --
+// without the removal the DOM grows by one tag per tick (720/hour at 5 s).
+//
+// There is deliberately no fallback state. A dashboard that invents plausible content is worse than
+// a blank one because it gets believed, and this pipeline's cost of a believed wrong number is GPU
+// time plus agent tokens.
+// ---------------------------------------------------------------------------------------------
+const STATE_JS = 'state.js';
+const POLL_MS = 5000;
+let tagEl = null;
+let firstLoad = true;
+
+function loadState(){
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = STATE_JS + '?t=' + Date.now();
+    s.onload = () => {
+      if (tagEl && tagEl.parentNode) tagEl.parentNode.removeChild(tagEl);
+      tagEl = s;
+      resolve(window.APP_STATE);
+    };
+    s.onerror = () => {
+      if (s.parentNode) s.parentNode.removeChild(s);
+      reject(new Error('state.js could not be loaded'));
+    };
+    document.body.appendChild(s);
+  });
+}
+
+function esc(v){
+  if (v === null || v === undefined) return '—';
+  return String(v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function num(v, d){
+  if (v === null || v === undefined || v === '' ) return '—';
+  const n = Number(v);
+  return Number.isFinite(n) ? n.toFixed(d === undefined ? 4 : d) : esc(v);
+}
+// A key/value row. The value is NOT escaped: callers pass pre-built markup (a phase pill, a
+// formatted number). Callers that pass raw text escape it first.
+function kv(k, v){
+  const val = (v === undefined || v === null || v === '') ? '—' : String(v);
+  return '<span class="k">' + esc(k) + '</span><span class="v">' + val + '</span>';
+}
+function ageStr(s){
+  if (s === null || s === undefined) return '—';
+  if (s < 90) return s.toFixed(0) + 's';
+  if (s < 5400) return (s/60).toFixed(1) + 'm';
+  return (s/3600).toFixed(1) + 'h';
+}
+
+const VERDICT_TEXT = {
+  OK:   ['Run health: OK', 'every check that could run passed'],
+  WARN: ['Run health: attention', 'nothing blocking, but something is not as expected'],
+  FAIL: ['Run health: BLOCKING', 'do not spend GPU time until this is resolved'],
+};
+
+function render(st){
+  if (!st){ return; }
+  const v = st.verdict || 'FAIL';
+  const b = document.getElementById('banner');
+  b.className = 'banner v-' + v;
+  const [t, why] = VERDICT_TEXT[v] || ['unknown', ''];
+  // Two questions, deliberately not merged into one light: is the running arm sound, and could
+  // another arm start. A single verdict would show FAIL for a perfectly healthy arm whenever the
+  // card is busy, and a verdict that is wrong whenever the pipeline is working gets ignored.
+  const launchTxt = st.can_launch === true
+      ? '<span class="pill p-run">can launch</span>'
+      : '<span class="pill p-idle">cannot launch now</span>';
+  document.getElementById('bannerText').innerHTML =
+    esc(t) + ' <span class="why">— ' + esc(why) + '</span> &nbsp;' + launchTxt;
+  document.getElementById('sub').innerHTML =
+    'state generated ' + esc(st.generated_at) +
+    ' · <b>run health</b> status ' + esc(st.verdicts?.status) +
+    ' validate ' + esc(st.verdicts?.validate) +
+    ' · <b>launch readiness</b> preflight ' + esc(st.verdicts?.preflight);
+
+  const a = st.arm || {};
+  const el = a.elapsed_min, bud = a.budget_min;
+  const pct = (el !== null && bud) ? Math.min(100, (el/bud)*100) : 0;
+  const barCls = pct > 100 ? 'hot' : (pct > 80 ? 'mid' : '');
+
+  let html = '';
+
+  // --- live arm -------------------------------------------------------------------------------
+  html += '<div class="card"><h2>Live arm</h2><div class="grid g2">';
+  html += '<div class="kv">'
+    + kv('arm', a.name) + kv('phase', '<span class="pill p-' + phaseCls(a.phase_class) + '">' + esc(a.phase) + '</span>')
+    + kv('gpu', (a.gpu_mib >= 0 ? a.gpu_mib + ' MiB / ' + esc(a.gpu_util) + '%' : 'unreadable'))
+    + kv('gpu apps', a.gpu_apps) + kv('model', a.model) + kv('seed', a.seed)
+    + '</div><div class="kv">'
+    + kv('started', a.started_at) + kv('spec', a.spec_sha256)
+    + kv('elapsed', el !== null ? el.toFixed(0) + ' min of ~' + bud + ' min' : '—')
+    + kv('checkpoint', a.checkpoint ? a.checkpoint.size_gib + ' GiB @ ' + a.checkpoint.written_at : 'not written yet')
+    + kv('records', a.records_file || 'not written yet')
+    + '</div></div>';
+  html += '<div class="bar ' + barCls + '"><i style="width:' + pct.toFixed(1) + '%"></i></div>';
+  html += '<div class="sub" style="margin:0">'
+    + (a.no_resume ? '<b style="color:var(--fail)">no resume</b> — the harness has no continuation path, so an interrupted run repeats all 1500 steps. '
+       : '')
+    + 'Progress percent is not shown: the harness prints nothing during fit(), so only phase and elapsed time are knowable.'
+    + '</div></div>';
+
+  // --- targets vs actuals ---------------------------------------------------------------------
+  const tg = a.targets || {}, ac = a.actual || {};
+  const rowT = (label, theirs, ours, actual, d) =>
+    '<tr><td class="name">' + esc(label) + '</td><td>' + num(theirs, d) + '</td><td>' + num(ours, d)
+    + '</td><td>' + (actual === undefined ? '<span class="missing">pending</span>' : num(actual, d)) + '</td></tr>';
+  html += '<div class="card"><h2>Reference vs anchors vs this arm</h2><table>'
+    + '<tr><th>metric</th><th>their v1.0 (2B)</th><th>our zero-shot (0.6B)</th><th>this arm</th></tr>'
+    + rowT('typed_decisions pooled top-1', tg.their_v1_0_top1, tg.our_zero_shot_top1, ac.top1_candidate_canonical, 4)
+    + rowT('mmlu_pro_1k pooled top-1', tg.their_v1_0_mmlu_top1, tg.our_zero_shot_mmlu_top1, undefined, 4)
+    + rowT('n_train_cases', tg.their_n_train_cases, tg.their_n_train_cases, ac.n_train_cases, 0)
+    + rowT('final_loss', tg.their_final_loss, undefined, ac.final_loss, 4)
+    + rowT('train_seconds', undefined, undefined, ac.train_seconds, 0)
+    + rowT('option-order gap (pp)', tg.their_v1_0_order_gap_pp, tg.our_zero_shot_order_gap_pp,
+           (ac.top1_candidate_canonical != null && ac.top1_candidate_reversed != null)
+             ? Math.abs(ac.top1_candidate_canonical - ac.top1_candidate_reversed) * 100 : undefined, 1)
+    + '</table>'
+    + '<div class="sub" style="margin:9px 0 0">'
+    + 'Their numbers are a 2B backbone more than three times larger; ours is the deliberate independent variable. '
+    + 'The headroom between our zero-shot anchor and their score is what the loop is meant to consume. '
+    + 'The order gap is a hypothesis under test: it is 3.1 pp at zero-shot and 0.0 pp in their release, so it should shrink with training.'
+    + '</div></div>';
+
+  // --- health chain ---------------------------------------------------------------------------
+  const CH = st.checks || {};
+  html += '<div class="card"><h2>Diagnostic chain</h2><div class="tabs">'
+    + ['preflight','status','validate'].map((k,i) =>
+        '<button class="tab" role="tab" aria-selected="' + (i===0) + '" data-p="' + k + '">'
+        + k + ' · ' + esc(st.verdicts?.[k]) + '</button>').join('')
+    + '</div>';
+  ['preflight','status','validate'].forEach((k,i) => {
+    html += '<div class="panel" data-p="' + k + '" style="display:' + (i===0?'block':'none') + '">';
+    const rows = CH[k] || [];
+    if (!rows.length){ html += '<div class="check"><span class="st s-SKIP">[--]</span><span class="bd">no checks</span></div>'; }
+    rows.forEach(r => {
+      html += '<div class="check"><span class="st s-' + (r.status||'SKIP').replace(/[\[\]]/g,'') + '">'
+        + esc(r.status) + '</span><span class="bd"><span class="detail">' + esc(r.name)
+        + (r.detail ? ' — ' + esc(r.detail) : '') + '</span>'
+        + (r.why ? '<div class="why">' + esc(r.why) + '</div>' : '') + '</span></div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+
+  // --- ledger ---------------------------------------------------------------------------------
+  const led = st.ledger || [];
+  html += '<div class="card"><h2>Arm ledger</h2>';
+  if (!led.length){
+    html += '<div class="check"><span class="st s-SKIP">[--]</span><span class="bd">no arm has been launched through the health chain yet</span></div>';
+  } else {
+    const d = st.ledger_drift || {};
+    html += '<table><tr><th>arm</th><th>started</th><th>spec</th><th>seed</th></tr>'
+      + led.map(r => '<tr><td class="name">' + esc(r.arm) + '</td><td>' + esc(r.started_at)
+      + '</td><td>' + esc(r.spec_sha256) + '</td><td>' + esc(r.seed) + '</td></tr>').join('')
+      + '</table>';
+    html += '<div class="sub" style="margin:9px 0 0">'
+      + d.launches + ' launch(es), ' + d.distinct_environments + ' distinct environment fingerprint(s). '
+      + (d.distinct_environments > 1
+          ? '<b class="stale">Environments differ between arms — results across them are not comparable.</b>'
+          : 'One environment across every arm, so comparisons are valid.')
+      + '</div>';
+  }
+  html += '</div>';
+
+  document.getElementById('app').innerHTML = html;
+
+  // tabs
+  document.querySelectorAll('.tab').forEach(tb => {
+    tb.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', 'false'));
+      tb.setAttribute('aria-selected', 'true');
+      document.querySelectorAll('.panel').forEach(p => {
+        p.style.display = (p.dataset.p === tb.dataset.p) ? 'block' : 'none';
+      });
+    });
+  });
+
+  // --- provenance -----------------------------------------------------------------------------
+  let f = '<b>Provenance.</b> state generated <span class="' + (ageClass(st)) + '">'
+        + esc(st.generated_at) + '</span>';
+  (st.sources || []).forEach(s => {
+    f += '<br>' + (s.exists
+      ? '<code>' + esc(s.path) + '</code> · mtime ' + esc(s.mtime) + ' · age ' + ageStr(s.age_s)
+      : '<code>' + esc(s.path) + '</code> · <span class="missing">missing</span>');
+  });
+  f += '<br><br>' + (st.notes || []).map(n => esc(n)).join('<br>');
+  f += '<br><br>Re-export with <code>python scripts/health.py dashboard</code>; this page reloads every '
+     + (POLL_MS/1000) + 's.';
+  document.getElementById('foot').innerHTML = f;
+}
+
+function phaseCls(c){ return c === 'run' ? 'run' : c === 'warn' ? 'warn' : c === 'fail' ? 'fail' : 'idle'; }
+function ageClass(st){
+  const age = (Date.now() - new Date(st.generated_at).getTime()) / 1000;
+  return age > 90 ? 'stale' : '';
+}
+
+function poll(){
+  loadState().then(st => { firstLoad = false; render(st); })
+             .catch(e => {
+               if (firstLoad){
+                 const b = document.getElementById('banner');
+                 b.className = 'banner v-FAIL';
+                 document.getElementById('bannerText').innerHTML =
+                   'Cannot read state — <span class="why">' + esc(e.message) +
+                   '. Run <code>python scripts/health.py dashboard</code> to generate viz/state.js.</span>';
+               } else {
+                 document.getElementById('sub').innerHTML =
+                   '<span class="missing">state unreadable since ' +
+                   esc(new Date().toLocaleTimeString()) + '</span>';
+               }
+             });
+}
+poll();
+setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
