@@ -77,6 +77,22 @@ that the control is a real bar rather than a formality, and that the run is wort
 > Consequence for scheduling: arm 0 is a ~1.4-hour job, not a 9.6-hour one. It was launched believing
 > the larger figure, which cost nothing here but would have decided against launching it.
 
+> **CORRECTED 2026-10-02 (second correction). The 23 s/step figure had no run behind it; the
+> replacement is also not a rate. `train_seconds: 2` from a 1-step run is a LOWER BOUND, not
+> s/step.** Arm 0 was launched on the belief that 1,500 steps would take ~75 minutes. It passed 118
+> minutes still training, so the true rate is **at least 4.4 s/step** and the projection was low by
+> a factor of two or more.
+>
+> Why a 1-step measurement cannot give a rate: the first step does not share the steady state's
+> conditions. CUDA autotunes kernels on first execution, the allocator warms up, and gradient
+> checkpointing installs its hooks during the first forward pass. A one-step timing measures that
+> setup, not a step.
+>
+> The exact figure will come from arm 0's own `meta.json`, which records `train_seconds` for all 1,500
+> steps. Until that lands, **no projection from this project should be trusted for scheduling** -- and
+> the failure mode to watch for is the same one as before: a real number, from a real run, whose
+> conditions were not the ones being asked about.
+
 The 22 s/step gap is the 8.88 GiB optimiser state, traversed in the backward pass and written back
 to every step.
 

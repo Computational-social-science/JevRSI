@@ -61,6 +61,33 @@ def source_status(p: pathlib.Path) -> dict:
             "age_s": round(datetime.datetime.now().timestamp() - st.st_mtime, 1)}
 
 
+def budget_minutes(arm: pathlib.Path) -> tuple[float | None, str]:
+    """(minutes, where the number came from).
+
+    Prefers a completed arm's own `train_seconds`, because that is a measurement of the real steady
+    state rather than a projection. Falls back to None with a reason, never to a made-up figure:
+    a dashboard showing a budget it invented would defeat the point of having one.
+    """
+    arms_root = arm.parent
+    best = None
+    for d in sorted(arms_root.iterdir()) if arms_root.is_dir() else []:
+        meta = d / "checkpoints" / "meta.json"
+        if not meta.is_file():
+            continue
+        try:
+            m = json.loads(meta.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        ts = m.get("train_seconds")
+        steps = (m.get("spec") or {}).get("steps")
+        if isinstance(ts, (int, float)) and isinstance(steps, int) and steps >= 100:
+            best = (ts / 60.0, f"{d.name} measured {ts:.0f}s for {steps} steps")
+    if best is None:
+        return None, "no completed arm yet — the budget cannot be known until one finishes"
+    # evaluation cost, measured on this host at ~16 min for eval_batch_size 8
+    return best[0] + 16.0, best[1] + " (training) + ~16 min evaluation (measured)"
+
+
 def arm_state(arm: pathlib.Path) -> dict:
     used, util, pids, free = health.gpu_state()
     if used >= health.TRAINING_MIB:
@@ -86,7 +113,12 @@ def arm_state(arm: pathlib.Path) -> dict:
             out["elapsed_min"] = round((datetime.datetime.now() - t0).total_seconds() / 60, 1)
         except Exception:                                        # noqa: BLE001
             out["elapsed_min"] = None
-        out["budget_min"] = 85   # train ~75 + evaluation ~16, from the measured 2-3 s/step
+        # The budget is derived from a COMPLETED arm's own meta.json, not from a projection. Two
+        # step-time estimates for this project were wrong in opposite directions -- 23 s/step with no
+        # run behind it, then 2 s/step from a 1-step run whose conditions are not the steady state's.
+        # A budget that comes from a finished run cannot drift from reality; one that comes from an
+        # estimate can, and did, twice.
+        out["budget_min"], out["budget_source"] = budget_minutes(arm)
 
     ck = arm / "checkpoints" / "tower.safetensors"
     if ck.is_file():

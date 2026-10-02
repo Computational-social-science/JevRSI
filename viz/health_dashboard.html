@@ -169,6 +169,9 @@ function render(st){
 
   const a = st.arm || {};
   const el = a.elapsed_min, bud = a.budget_min;
+  // The budget comes from a completed arm's own train_seconds. Until one has finished there is no
+  // budget, and the page says so rather than showing a projection -- two step-time projections for
+  // this project were wrong, in opposite directions, and a bar drawn from a guess is worse than none.
   const pct = (el !== null && bud) ? Math.min(100, (el/bud)*100) : 0;
   const barCls = pct > 100 ? 'hot' : (pct > 80 ? 'mid' : '');
 
@@ -182,7 +185,10 @@ function render(st){
     + kv('gpu apps', a.gpu_apps) + kv('model', a.model) + kv('seed', a.seed)
     + '</div><div class="kv">'
     + kv('started', a.started_at) + kv('spec', a.spec_sha256)
-    + kv('elapsed', el !== null ? el.toFixed(0) + ' min of ~' + bud + ' min' : '—')
+    + kv('elapsed', el !== null
+        ? el.toFixed(0) + (bud ? ' min of ~' + bud.toFixed(0) + ' min budget (' + esc(a.budget_source || '') + ')'
+                               : ' min — no budget yet: ' + esc(a.budget_source || 'no completed arm'))
+        : '—')
     + kv('checkpoint', a.checkpoint ? a.checkpoint.size_gib + ' GiB @ ' + a.checkpoint.written_at : 'not written yet')
     + kv('records', a.records_file || 'not written yet')
     + '</div></div>';
