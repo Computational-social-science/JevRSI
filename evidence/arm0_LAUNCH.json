@@ -34,7 +34,12 @@
     "their_v1_0_mmlu_pro_1k_top1": 0.355
   },
   "expected": {
-    "train_seconds_estimate": 54000,
-    "note": "23 s/step x 1500, plus ~16 min evaluation at eval_batch_size 8"
+    "train_seconds_estimate": 4500,
+    "estimate_basis": "2-3 s/step from the 1-step run's own meta.json train_seconds=2 (v1.0 modules, published spec, freeze_base=false); plus ~8 min one-off setup and ~16 min evaluation at eval_batch_size 8",
+    "superseded_estimate": {
+      "train_seconds": 54000,
+      "s_per_step": 23,
+      "why_withdrawn": "23 s/step had no traceable run behind it and is contradicted by the direct 1-step measurement. See docs/arm0_probe_evidence.md."
+    }
   }
 }

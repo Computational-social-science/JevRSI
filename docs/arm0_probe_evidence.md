@@ -59,6 +59,24 @@ that the control is a real bar rather than a formality, and that the run is wort
 | `freeze_base: true` (head only) | 1 s/step | 0.4 h |
 | **`freeze_base: false` (the real arm)** | **23 s/step** | **9.6 h** |
 
+> **CORRECTED 2026-10-02. The 23 s/step figure has no traceable source and is contradicted by a
+> direct measurement. Use ~2-3 s/step, and ~1.25 h for 1,500 steps plus ~8 min of setup.**
+>
+> The clean number comes from the 1-step run through the v1.0 modules with the published spec at
+> `freeze_base: false`, whose own `meta.json` records `train_seconds: 2`. It is consistent with the
+> only other uncontended run: the 3-step probe's `train_seconds: 467` decomposes as ~458 s of one-off
+> cost (model load, the fp32 tower copy, corpus encoding) plus a ~9 s loop. Their own 2B on an H100
+> records `908 / 1500 = 0.61 s/step`, so the ratio is 4.9x in the direction the hardware predicts.
+>
+> Why the wrong number survived: it was written down as a measurement and then reused for planning
+> without ever being traced back to a run. Every step-time error on this project has been a number
+> read off a run whose conditions did not match the question -- this one is a number read off **no
+> run at all**, which is the same failure with the provenance removed entirely. The rule stands and
+> is now applied to the figure itself: a step time with no run attached is not a measurement.
+>
+> Consequence for scheduling: arm 0 is a ~1.4-hour job, not a 9.6-hour one. It was launched believing
+> the larger figure, which cost nothing here but would have decided against launching it.
+
 The 22 s/step gap is the 8.88 GiB optimiser state, traversed in the backward pass and written back
 to every step.
 
