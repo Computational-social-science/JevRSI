@@ -1,0 +1,40 @@
+{
+  "arm": "arm0",
+  "what": "RSI-Jev v1.0 recipe on Qwen3-0.6B. The curve's first point.",
+  "started_at": "2026-10-02T21:13:46",
+  "spec_sha256": "8712e49a138db22b20a227140fb4dabe61720fe91672fdd73717a276372a42b5",
+  "spec_matches_repo": true,
+  "spec_is_published_verbatim": "copied from shgao/rsi-jev-v1.0-qwen3.5-2b meta.json; sole deviation eval_batch_size 32->8",
+  "deviations": {
+    "eval_batch_size": "theirs=32 -> ours=8. NOT the OOM it was first justified by: that came from a run sharing the card with a 30-step job, and the same run's train_seconds is already discarded for that contention -- one invalidated run cannot yield one number kept and another discarded. Re-measured on an idle card with the v1.0 modules: 32 does not OOM. It does sit at 11,583/12,282 MiB = 94% and take >61 min against 8's 15.6, so 8 is kept for headroom and speed, not for correctness. Evaluation-only. See docs/eval_batch_size_correction.md."
+  },
+  "environment": {
+    "rsijev/__init__.py": "df3d5d0cd69e78af",
+    "rsijev/arch.py": "847d894fc8d59086",
+    "rsijev/contract.py": "d412f9dd98f24fdc",
+    "rsijev/data.py": "be9e87c76b8f1c1e",
+    "rsijev/encode.py": "9f9c8318289b55d1",
+    "rsijev/evaluate.py": "9951b75f1649359b",
+    "rsijev/fit.py": "66731908be8042c1",
+    "rsijev/metrics.py": "e7a0b9727a2bc968",
+    "rsijev/targets.py": "664035cdf66f0bea",
+    "rsijev/train.py": "03f6ba04c0efd816",
+    "run_arm_lib.py": "8be1c7a87b4c3518",
+    "_source": "rsijev/ from shgao/rsi-jev-v1.0-qwen3.5-2b code/ ; driver from RSI-Jev HEAD"
+  },
+  "environment_path": "E:\\2026-AI4S\\v1_env",
+  "model": "E:/2026-AI4S/jev_repro/models/Qwen3-0.6B",
+  "corpus": "E:/2026-AI4S/corpus_rsijev",
+  "targets": {
+    "their_v1_0_final_loss": 0.6074753403663635,
+    "their_v1_0_n_train_cases": 6277,
+    "our_zero_shot_typed_decisions_top1": 0.4025,
+    "their_v1_0_typed_decisions_top1": 0.6525,
+    "our_zero_shot_mmlu_pro_1k_top1": 0.211,
+    "their_v1_0_mmlu_pro_1k_top1": 0.355
+  },
+  "expected": {
+    "train_seconds_estimate": 54000,
+    "note": "23 s/step x 1500, plus ~16 min evaluation at eval_batch_size 8"
+  }
+}
