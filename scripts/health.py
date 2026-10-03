@@ -50,6 +50,11 @@ import paths  # noqa: E402
 # n_train_cases is their published number, so a mismatch means the split or the filter moved.
 EXPECTED_CORPUS_CASES = 6977
 EXPECTED_TRAIN_CASES = 6277
+# Wall-clock of arm 0, measured 2026-10-03: 21:13:49 -> 15:20:54. The elapsed check budgets from
+# this rather than from a projection, because the projection this replaced was wrong by 14-20x and
+# spent eleven hours calling a healthy run stuck.
+ARM0_MEASURED_MIN = 1087.0
+ARM0_SECONDS_PER_STEP = 41.8
 # 2 roles x 2 option orders x 3 targets. A short count means an evaluation leg did not run.
 EXPECTED_RECORDS = 12
 EXPECTED_ITEMS = 21792
@@ -409,6 +414,17 @@ def preflight(spec_path: pathlib.Path) -> Report:
 
 def status(arm: pathlib.Path) -> Report:
     rep = Report(f"status  {arm.name}")
+
+    # Artifacts FIRST, because whether an idle GPU is a fault depends on whether this arm is done.
+    # The previous ordering judged the GPU before knowing that, so a completed arm reported FAIL on
+    # its own success -- and the reason it printed ("the harness has NO RESUME") is a property of
+    # the NEXT launch, not a fault of the one that just finished.
+    ck = arm / "checkpoints" / "tower.safetensors"
+    out = sorted(p for p in (arm / "out").glob("*.jsonl")
+                 if not p.name.endswith(".items.jsonl")) if (arm / "out").is_dir() else []
+    items = sorted((arm / "out").glob("*.items.jsonl")) if (arm / "out").is_dir() else []
+    finished = bool(out)
+
     used, util, pids, free = gpu_state()
     if used >= TRAINING_MIB:
         state = "TRAINING"
@@ -416,8 +432,17 @@ def status(arm: pathlib.Path) -> Report:
         state = "PREPARING (fp32 tower copy / corpus encode; the loop has not started)"
     else:
         state = "NOT RUNNING"
-    rep.add("gpu", OK if state != "NOT RUNNING" else FAIL, f"{used} MiB / {util}% -> {state}",
-            "the harness has NO RESUME: a dead run costs all its steps again")
+    if state != "NOT RUNNING":
+        rep.ok("gpu", f"{used} MiB / {util}% -> {state}")
+    elif finished:
+        rep.ok("gpu", f"{used} MiB / {util}% -> NOT RUNNING, and this arm is done "
+                      f"({len(out)} record file(s) written)")
+    elif used < 0:
+        rep.warn("gpu", "nvidia-smi unreadable; cannot say whether this arm is running")
+    else:
+        rep.fail("gpu", f"{used} MiB / {util}% -> NOT RUNNING, but this arm has written no "
+                        f"evaluation records",
+                 "the harness has NO RESUME: a dead run costs all its steps again")
 
     launch = arm / "LAUNCH.json"
     if launch.is_file():
@@ -428,22 +453,26 @@ def status(arm: pathlib.Path) -> Report:
             try:
                 t0 = datetime.datetime.fromisoformat(started)
                 mins = (datetime.datetime.now() - t0).total_seconds() / 60
-                budget = 60 * 3.5
+                # Budget from a MEASUREMENT, never from a projection. Arm 0 (2026-10-03) took 1,087
+                # min wall: 62,741 s training = 41.8 s/step, plus ~38 min eval. The value this
+                # replaced was ~85 min, derived from a "2-3 s/step" estimate read off a 1-step run
+                # whose train_seconds contains only one-time setup -- wrong by 14-20x, and it made a
+                # healthy run look stuck for eleven hours.
+                budget = ARM0_MEASURED_MIN * 1.25
                 if mins > budget:
-                    rep.warn("elapsed", f"{mins:.0f} min, past the {budget:.0f} min budget",
+                    rep.warn("elapsed", f"{mins:.0f} min, past the {budget:.0f} min budget "
+                                        f"(arm 0 measured {ARM0_MEASURED_MIN:.0f} min)",
                              "either slower than measured or stuck; check before assuming progress")
                 else:
-                    rep.ok("elapsed", f"{mins:.0f} min of a ~85 min budget (train ~75 + eval ~16)")
+                    rep.ok("elapsed", f"{mins:.0f} min of a {budget:.0f} min budget "
+                                      f"(arm 0 measured {ARM0_MEASURED_MIN:.0f} min @ 41.8 s/step)")
             except Exception:                                    # noqa: BLE001
                 pass
     else:
         rep.warn("launch record", "no LAUNCH.json — this arm was not started through health.py launch")
 
     # phase from artifacts. Their absence during training is expected, not a failure.
-    ck = arm / "checkpoints" / "tower.safetensors"
-    out = sorted(p for p in (arm / "out").glob("*.jsonl")
-                 if not p.name.endswith(".items.jsonl")) if (arm / "out").is_dir() else []
-    items = sorted((arm / "out").glob("*.items.jsonl")) if (arm / "out").is_dir() else []
+    # (ck / out / items were computed at the top, because the gpu verdict needs them.)
     if out:
         rep.ok("phase", f"evaluation finished ({len(out)} record file(s), {len(items)} items file(s))")
     elif ck.is_file():
