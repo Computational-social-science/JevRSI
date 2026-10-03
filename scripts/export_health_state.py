@@ -98,7 +98,11 @@ def arm_state(arm: pathlib.Path) -> dict:
         phase, phase_class = "NOT RUNNING", "fail" if used >= 0 else "unknown"
 
     out = {"name": arm.name, "phase": phase, "phase_class": phase_class,
-           "gpu_mib": used, "gpu_util": util, "gpu_apps": len(pids),
+           "gpu_mib": used, "gpu_util": util,
+           # None, not 0: the dashboard renders this, and 0 asserts "no process holds a context"
+           # while None says "the query did not answer". A busy GPU reported as 0 is the one
+           # direction this must never err in.
+           "gpu_apps": None if pids is None else len(pids),
            "no_resume": True}
 
     launch = arm / "LAUNCH.json"

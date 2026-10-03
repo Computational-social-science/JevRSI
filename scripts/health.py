@@ -157,7 +157,7 @@ def env_fingerprint(env: pathlib.Path) -> dict:
     return fp
 
 
-def gpu_state() -> tuple[int, str, list[str], int]:
+def gpu_state() -> tuple[int, str, list[str] | None, int]:
     """(used_mib, util, compute_pids, free_mib).
 
     `free` is the load-bearing value. On WDDM, `--query-compute-apps` lists every process touching
@@ -169,15 +169,28 @@ def gpu_state() -> tuple[int, str, list[str], int]:
     r = subprocess.run(["nvidia-smi", "--query-gpu=memory.used,memory.free,utilization.gpu",
                         "--format=csv,noheader,nounits"], capture_output=True, text=True)
     used, free, util = -1, -1, "?"
+    if r.returncode != 0:
+        # -1 / "?" are visible sentinels: a consumer prints them and a reader sees "unknown".
+        # Returning 0 for the memory would read as "an idle GPU".
+        return used, util, None, free
     try:
         parts = [p.strip() for p in r.stdout.strip().split(",")]
         used, free, util = int(parts[0]), int(parts[1]), parts[2]
     except Exception:                                            # noqa: BLE001
-        pass
+        return used, util, None, free
     apps = subprocess.run(["nvidia-smi", "--query-compute-apps=pid", "--format=csv,noheader"],
                           capture_output=True, text=True)
-    pids = [p.strip() for p in apps.stdout.splitlines() if p.strip()]
+    # None, not []. An empty list means "no process holds a context"; a failed query means "we do
+    # not know". They are opposite claims, and the second read as the first is how a busy GPU gets
+    # reported as free -- which is the one direction this check must never err in.
+    pids = ([p.strip() for p in apps.stdout.splitlines() if p.strip()]
+            if apps.returncode == 0 else None)
     return used, util, pids, free
+
+
+def proc_count(pids: list[str] | None) -> str:
+    """Render a compute-process count without turning 'unknown' into 'none'."""
+    return "unknown" if pids is None else str(len(pids))
 
 
 def count_jsonl(path: pathlib.Path) -> int:
@@ -361,14 +374,14 @@ def preflight(spec_path: pathlib.Path) -> Report:
         rep.warn("gpu", "nvidia-smi unreadable")
     elif free < NEED_MIB:
         rep.fail("gpu capacity", f"{free} MiB free, the run peaks at {NEED_MIB} MiB "
-                                 f"({used} MiB in use by {len(pids)} process(es))",
+                                 f"({used} MiB in use by {proc_count(pids)} process(es))",
                  "a run that does not fit OOMs partway, and this project's false OOM came from "
                  "sharing the card; free memory before launching")
     elif free < NEED_MIB + 800:
         rep.warn("gpu capacity", f"{free} MiB free against a {NEED_MIB} MiB peak — tight",
                  "other GPU work during the run could push it over")
     else:
-        rep.ok("gpu capacity", f"{free} MiB free, run peaks at {NEED_MIB} MiB ({len(pids)} process(es) hold a context)")
+        rep.ok("gpu capacity", f"{free} MiB free, run peaks at {NEED_MIB} MiB ({proc_count(pids)} process(es) hold a context)")
 
     # disk headroom for the checkpoint set.
     try:
