@@ -16,8 +16,9 @@
   "_protected": {
     "scripts/evaluate_split.py": "ec547eb1c07069cf456e95b32946958d33a12a8bdffd25d0b147e2bedd56cadd",
     "scripts/autoresearch_agent.py": "2ba2836b46c2633bd54818bdd6530d4b611927e0c46bd910b68cf288f4f5ead9",
-    "typed_decisions/experiment.py": "ca54b8e112fba4c53993367b1a49158633b8ffb415c29e33b986fdd44fefc7fa"
+    "typed_decisions/experiment.py": "27a6f29c168f8dfbc1335b91688ac7b71739d211ccfdc1043393b2c898920624"
   },
+  "_hash_convention": "sha256 over the file's bytes with CRLF normalised to LF, because the boundary is pinned by content, not by presentation. Measured 2026-10-03: this file carried 156 CRLF pairs while the other two PROTECTED files carried none, so a byte hash would have reported MODIFIED for a content-identical file after any Windows checkout. The other two declarations were byte-identical under both conventions and did not change. Verify with: python scripts/check_edit_guard.py --show-hashes",
   "_protected_why": {
     "scripts/evaluate_split.py": "what is scored, how, and on which split",
     "scripts/autoresearch_agent.py": "the accept rule, the threshold, the reset semantics",

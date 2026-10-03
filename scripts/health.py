@@ -127,6 +127,25 @@ def sha_file(p: pathlib.Path) -> str:
     return hashlib.sha256(p.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
+def spec_repo_comparison(arm_name: str, spec: pathlib.Path) -> tuple[bool | None, str | None]:
+    """Does this arm's frozen spec equal the repo's declared spec for that arm?
+
+    Returns (matches, against). `matches` is None when the repo declares nothing for this arm --
+    which means "no claim", not "mismatch".
+
+    The previous form compared against ``config/spec.json``. That path has never existed (the file
+    is ``config/arm0_spec.json``), so the is_file() guard made the field None on every launch and
+    the check answered nothing. Compared by content, not bytes, for the same reason
+    check_edit_guard.py is: the arm's spec carries CRLF on this host and the repo's may not, and
+    the question is whether the spec is the same, not how it was written down.
+    """
+    norm = lambda p: p.read_bytes().replace(b"\r\n", b"\n")
+    for cand in (ROOT / "config" / f"{arm_name}_spec.json", ROOT / "config" / spec.name):
+        if cand.is_file():
+            return norm(spec) == norm(cand), cand.relative_to(ROOT).as_posix()
+    return None, None
+
+
 def env_fingerprint(env: pathlib.Path) -> dict:
     fp = {}
     for p in sorted((env / "rsijev").glob("*.py")):
@@ -624,14 +643,20 @@ def launch(a) -> int:
     arm.mkdir(parents=True, exist_ok=True)
     env_dir = paths.v1_env()
     log = arm / "run.log"
+    _srm = spec_repo_comparison(arm.name, spec)
     payload = {
         "arm": arm.name,
         "what": a.what or "RSI-Jev recipe on a Qwen3-0.6B backbone",
         "started_at": datetime.datetime.now().isoformat(timespec="seconds"),
         "spec": str(spec),
+        # content hash: CRLF normalised to LF, so the number is a property of the spec and not of
+        # the machine that hashed it. evidence/arm0_LAUNCH.json holds a raw-byte hash for this same
+        # field -- it predates this convention and is left as written, so read the two as different
+        # numbers unless you normalise first.
         "spec_sha256": sha_file(spec),
-        "spec_repo_match": (spec.read_bytes() == (ROOT / "config" / spec.name).read_bytes())
-                            if (ROOT / "config" / spec.name).is_file() else None,
+        "spec_sha256_convention": "sha256 over bytes with CRLF normalised to LF",
+        "spec_repo_match": _srm[0],
+        "spec_repo_match_against": _srm[1],
         "environment": env_fingerprint(env_dir),
         "environment_path": str(env_dir),
         "model": str(paths.backbone()),

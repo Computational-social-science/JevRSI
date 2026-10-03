@@ -1,0 +1,49 @@
+# Line-ending policy, decided once here rather than guessed at inside each checker.
+#
+# Why this file exists
+# --------------------
+# Two failures on this host trace to the same root: a byte-level comparison applied to a text file
+# across a platform boundary.
+#
+#   * BootLoops pins its vendored files by sha256 and refuses to compute on a mismatch. Git for
+#     Windows converted LF to CRLF on checkout (that repository ships no .gitattributes), so its
+#     pins failed on files that were content-identical. Normalising the newlines reproduced the
+#     pins exactly: geo/mc.py hashed 732444e7... raw and 20508a7a... normalised, and the pin is
+#     20508a7a...
+#   * In this project, typed_decisions/experiment.py in the subject repo carries 156 CRLF pairs
+#     while its two sibling PROTECTED files carry none, so a raw-byte guard hash made the verdict a
+#     function of which machine looked at the file.
+#
+# Ten of this repository's own tracked text files are currently CRLF. Declaring the policy here
+# means no future checkout can silently change the bytes on disk, and no checker has to guess a
+# convention. Checkers still normalise before comparing -- this file makes the *cause* go away, and
+# the checkers make the *verdict* independent of the cause.
+#
+# Consequence to be aware of: after this file lands, a fresh checkout writes LF where the working
+# tree previously held CRLF, so those ten files will show as modified in `git status` until they are
+# renormalised and committed. That is a real content change and belongs to whoever owns the history.
+
+* text=auto eol=lf
+
+# Windows shells misparse LF-only batch and PowerShell scripts. Keep them CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Never touch bytes we do not own the interpretation of.
+*.gif binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.pdf binary
+*.pt binary
+*.bin binary
+*.safetensors binary
+*.npz binary
+*.npy binary
+*.zip binary
+*.gz binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

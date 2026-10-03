@@ -55,7 +55,21 @@ DECL = ROOT / "config" / "edit_guard.json"
 
 
 def sha256(path: pathlib.Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Content hash. Line-ending presentation is normalised away before hashing.
+
+    The declaration states the boundary is "pinned by content rather than by import". Raw bytes are
+    not content: the same file is CRLF after a Windows checkout and LF after a Linux one, so a byte
+    hash makes this guard's verdict a function of which machine looked at the file rather than of
+    whether the file changed. Measured 2026-10-03: of the three PROTECTED files,
+    typed_decisions/experiment.py carries 156 CRLF pairs (`raw ca54b8e1...` vs `normalised
+    27a6f29c...`) while the other two carry none -- so the byte hash would have reported MODIFIED
+    for a content-identical file the moment it crossed a platform, and the honest repair would have
+    looked like relaxing the guard.
+
+    This does not weaken the check: any change to the text of any line still changes the hash.
+    """
+    raw = path.read_bytes()
+    return hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
 
 
 def declaration() -> dict:
@@ -158,6 +172,27 @@ def self_test(root: pathlib.Path, decl: dict) -> int:
         for l in lines:
             if "[FAIL]" in l:
                 print(f"      {l.strip()[:98]}")
+    # 5. the hash must be blind to line-ending presentation and blind to nothing else.
+    #    Without this, "fewer failures" is the only evidence, and fewer failures is what a broken
+    #    guard also produces.
+    import tempfile
+    lf_src = (root / "typed_decisions/experiment.py").read_bytes().replace(b"\r\n", b"\n")
+    with tempfile.TemporaryDirectory() as td:
+        tdp = pathlib.Path(td)
+        (tdp / "lf.py").write_bytes(lf_src)
+        (tdp / "crlf.py").write_bytes(lf_src.replace(b"\n", b"\r\n"))
+        (tdp / "edited.py").write_bytes(lf_src.replace(b"def ", b"def  ", 1))
+        h_lf, h_crlf, h_edit = (sha256(tdp / "lf.py"), sha256(tdp / "crlf.py"),
+                                sha256(tdp / "edited.py"))
+    present_ok = h_lf == h_crlf
+    content_ok = h_lf != h_edit
+    print(f"    {'LF and CRLF forms of one file hash alike':44} -> "
+          f"{'accepted (presentation-blind)' if present_ok else 'DIFFER -- still byte-sensitive'}")
+    print(f"    {'a one-character edit hashes differently':44} -> "
+          f"{'rejected (content-sensitive)' if content_ok else 'ACCEPTED -- the hash is blind'}")
+    if not (present_ok and content_ok):
+        ok = False
+
     _, fails, _ = check(decl, root)
     if fails:
         ok = False
@@ -170,12 +205,30 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Enforce the EDITABLE / PROTECTED split.")
     ap.add_argument("--self-test", action="store_true",
                     help="prove the guard rejects a modified, undeclared or missing file")
+    ap.add_argument("--show-hashes", action="store_true",
+                    help="print the content hashes to put in the declaration")
     a = ap.parse_args()
 
     decl = declaration()
     root = require(subject(), "the agent-jev subject repository")
     print(f"[edit-guard] declaration: {DECL.relative_to(ROOT)}")
     print(f"[edit-guard] subject    : {root}")
+
+    if a.show_hashes:
+        print()
+        for rel in sorted(decl["_protected"]):
+            p = root / rel
+            if not p.is_file():
+                print(f"  {rel:38} MISSING")
+                continue
+            got = sha256(p)
+            cur = decl["_protected"][rel]
+            state = "unchanged" if got == cur else "DIFFERS -> re-declare deliberately"
+            print(f"  {rel:38} {got}")
+            print(f"  {'':38} declared {cur}   ({state})")
+        print("\n  Re-declaring is a human edit to config/edit_guard.json, and per that file's own")
+        print("  _redeclaring note it is for changing the task, never for making an arm pass.")
+        return 0
 
     if a.self_test:
         print()
