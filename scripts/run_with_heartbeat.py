@@ -42,6 +42,7 @@ import pathlib
 import runpy
 import sys
 import time
+import types
 
 _count = 0
 _last = 0.0
@@ -85,18 +86,32 @@ def install(arm_dir: pathlib.Path, every: int, env_dir: pathlib.Path) -> None:
     # Wrapping the INSTANCE method rather than torch.optim.Optimizer.step, because subclasses such
     # as AdamW define their own step() and would shadow a base-class patch. init runs before the
     # training loop builds anything, so every optimizer is covered.
+    #
+    # The replacement MUST be a real bound method. Assigning a plain closure works until something
+    # asks it for `__func__`, and PyTorch's own LR scheduler does exactly that:
+    #
+    #     torch/optim/lr_scheduler.py, in patch_track_step_called:
+    #         opt.step = wrap_step(opt.step)   ->   func = step_fn.__func__
+    #     AttributeError: 'function' object has no attribute '__func__'
+    #
+    # Measured 2026-10-03: that crashed the run inside optimizer construction, AFTER the heartbeat
+    # had already written its start row -- so the failure left behind a progress.jsonl containing
+    # "heartbeat start" and nothing else, which is indistinguishable from a hung job. The tool whose
+    # entire purpose is telling "stuck" from "slow" was manufacturing a false "stuck".
+    # types.MethodType gives a genuine bound method: it shadows the class attribute AND answers
+    # __func__, so every downstream wrapper that unwraps it still works.
     orig_init = torch.optim.Optimizer.__init__
 
     def wrapped_init(self, *a, **k):
         orig_init(self, *a, **k)
         inner = self.step
 
-        def step_and_count(*aa, **kk):
+        def step_and_count(_self, *aa, **kk):
             r = inner(*aa, **kk)
             _bump()
             return r
 
-        self.step = step_and_count
+        self.step = types.MethodType(step_and_count, self)
 
     torch.optim.Optimizer.__init__ = wrapped_init
 
@@ -121,8 +136,34 @@ def main() -> int:
     print(f"[heartbeat] every {a.every} steps -> {arm / 'progress.jsonl'}", flush=True)
 
     sys.argv = [str(script)] + list(a.args)
-    runpy.run_path(str(script), run_name="__main__")
+    # Write a TERMINAL row whatever happens. Without it, a crash leaves progress.jsonl holding the
+    # start row and nothing else, and "started and died at step 0" is indistinguishable from
+    # "running but stalled" -- the one confusion this tool exists to remove. Measured 2026-10-03:
+    # an AttributeError inside optimizer construction did exactly that.
+    outcome, detail = "ok", None
+    try:
+        runpy.run_path(str(script), run_name="__main__")
+    except BaseException as e:                                  # noqa: BLE001
+        outcome, detail = "crashed", f"{type(e).__name__}: {str(e)[:200]}"
+        raise
+    finally:
+        _write_terminal(arm, outcome, detail, _count)
     return 0
+
+
+def _write_terminal(arm: pathlib.Path, outcome: str, detail: str | None, steps: int) -> None:
+    row = {"step": steps, "at": datetime.datetime.now().isoformat(timespec="seconds"),
+           "elapsed_s": round(time.time() - _t0, 2) if _t0 else None,
+           "note": "heartbeat stop", "outcome": outcome, "steps_counted": steps}
+    if detail:
+        row["detail"] = detail
+    try:
+        with (arm / "progress.jsonl").open("a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row) + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
+    except OSError:
+        pass
 
 
 if __name__ == "__main__":

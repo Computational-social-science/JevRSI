@@ -2,10 +2,10 @@
 paths.py -- the single place a machine-specific location is written down.
 
 WHY THIS EXISTS
-    The subject repository and the base weights are on a different volume from this repository. A
-    path like E:/2026-AI4S/agent-jev cannot be written relative to the project root and cannot be
-    committed without making the tree uncloneable on another machine. So each location is declared
-    once in config/paths.json, and an environment variable may override it.
+    The reference repository, the code environment, the backbone and the corpus are on a different
+    volume from this repository. A path like E:/2026-AI4S/v1_env cannot be written relative to the
+    project root and cannot be committed without making the tree uncloneable on another machine. So
+    each location is declared once in config/paths.json, and an environment variable may override it.
 
 WHY A LOUD FAILURE INSTEAD OF A DEFAULT
     A default that is wrong on this host is worse than no default: it produces a plausible run
@@ -13,9 +13,15 @@ WHY A LOUD FAILURE INSTEAD OF A DEFAULT
     An unset override raises with the variable name in the message. Every path returned here is one
     that exists.
 
+WHY THERE IS NO `subject`
+    There was one, pointing at a subject repository that belonged to an earlier objective. Its
+    presence was not inert: paths.py resolved it for the edit guard, so a guard ran against another
+    project's files while reporting on this one's. The subject here is the arms plus the v1.0 code
+    environment, both declared directly.
+
 USAGE
-    from paths import subject, backbone, require
-    SUBJECT = require(subject(), "the subject repository")
+    from paths import arms, backbone, require
+    BACKBONE = require(backbone(), "the backbone weights")
 """
 from __future__ import annotations
 
@@ -27,9 +33,9 @@ CONFIG = pathlib.Path(__file__).resolve().parent / "config" / "paths.json"
 
 # key in config/paths.json -> environment variable that overrides it
 ENV_FOR = {
-    "subject": "JEVRSI_SUBJECT",
     "backbone": "JEVRSI_BACKBONE",
     "synth_corpus": "JEVRSI_SYNTH_CORPUS",
+    "arms": "JEVRSI_ARMS",
     "reference_repo": "JEVRSI_REFERENCE_REPO",
     "published_release": "JEVRSI_PUBLISHED_RELEASE",
     "v1_env": "JEVRSI_V1_ENV",
@@ -44,8 +50,9 @@ def _config() -> dict:
     return json.loads(CONFIG.read_text(encoding="utf-8"))
 
 
-def subject() -> pathlib.Path:
-    return _resolve("subject")
+def arms() -> pathlib.Path:
+    """Where an arm's run directory lives: its spec, its checkpoints, its records."""
+    return _resolve("arms")
 
 
 def backbone() -> pathlib.Path:
@@ -53,6 +60,7 @@ def backbone() -> pathlib.Path:
 
 
 def synth_corpus() -> pathlib.Path:
+    """RSI-Jev's own build_synth_corpus.py output -- the corpus every arm trains on."""
     return _resolve("synth_corpus")
 
 
@@ -118,8 +126,3 @@ def require(path, what: str) -> pathlib.Path:
             names.append(f"${env}" if os.environ.get(env) else f"{CONFIG.name}:{key}")
     hint = f" -- set {' or '.join(names)}" if names else ""
     raise SystemExit(f"[fatal] {what} not found at {p}{hint}")
-
-
-def splits_dir() -> pathlib.Path:
-    """The subject repository's question splits, including any converted foreign corpus."""
-    return require(subject(), "the subject repository") / "data" / "agentjev_splits"

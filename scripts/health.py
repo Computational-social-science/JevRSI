@@ -252,7 +252,7 @@ def preflight(spec_path: pathlib.Path) -> Report:
     # paths. Catches an unset JEVRSI_* override, which paths.py refuses to substitute a default for.
     missing = []
     resolved = {}
-    for key in ("subject", "backbone", "synth_corpus", "reference_repo", "published_release", "v1_env"):
+    for key in ("backbone", "synth_corpus", "arms", "reference_repo", "published_release", "v1_env"):
         try:
             p = getattr(paths, key)()
             resolved[key] = p
